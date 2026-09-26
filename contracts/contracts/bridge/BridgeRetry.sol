@@ -23,8 +23,8 @@ library BridgeRetry {
     uint8 internal constant MODE_HANDLE = 1;
     uint8 internal constant TASK_EXECUTED = 3;   // Socket_Struct.Task_Status
     uint8 internal constant TASK_ROLLBACKED = 8;
-    bytes32 internal constant RETRY_NS = keccak256("hedra.bridge.retried.v1");
-    bytes32 internal constant HANDLED_NS = keccak256("hedra.bridge.handled.v1");
+    bytes32 internal constant RETRY_NS = keccak256("achilles.bridge.retried.v1");
+    bytes32 internal constant HANDLED_NS = keccak256("achilles.bridge.handled.v1");
 
     /// @notice Whether the receive handler already processed this message; prevents re-running a
     ///         normally delivered message. Key = (source ChainIndex, sender contract, declared amount,

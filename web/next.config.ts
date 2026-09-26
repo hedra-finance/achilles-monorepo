@@ -7,7 +7,7 @@ const STUBS = ['@x402/core/client', '@x402/core', '@x402/evm', '@x402/evm/exact/
 
 const config: NextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['hedra-contracts'],
+  transpilePackages: ['achilles-contracts'],
   turbopack: { resolveAlias: Object.fromEntries(STUBS.map((s) => [s, stub])) },
   webpack: (c) => { c.resolve.alias = { ...c.resolve.alias, ...Object.fromEntries(STUBS.map((s) => [s, require.resolve(stub)])) }; return c },
 }

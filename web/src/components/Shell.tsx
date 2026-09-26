@@ -16,7 +16,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     <>
       <header className="nav">
         <div className="wrap row" style={{ height: '100%', flexWrap: 'nowrap' }}>
-          <Link className="brand" href="/">Hedra</Link>
+          <Link className="brand" href="/">Achilles</Link>
           {LINKS.map(([href, label]) => <Link key={href} href={href} className={`link${path === href ? ' on' : ''}`}>{label}</Link>)}
           <span className="spacer" />
           {isConnected && address
