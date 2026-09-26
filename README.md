@@ -141,8 +141,11 @@ and documentation. This statement describes the frontend assistance reflected
 here; the team should describe its complete contribution and development history
 in the event submission.
 
-## Frontend AI assistance
+## AI assistance
 
-See [Frontend AI assistance and human direction](frontend/AI_USAGE.md) for the
-frontend contributor's workflow and implementation references. This document
-covers the frontend and its application API routes, not the entire project.
+Each contributor documents their own use, and neither document speaks for the
+whole project.
+
+- [Frontend](frontend/AI_USAGE.md) — the frontend and its application API routes.
+- [Contracts](contracts/AI_USAGE.md) — the contracts, settlement pipeline,
+  cross-chain messaging and the scripts that operate them.
