@@ -367,6 +367,27 @@ html[data-page-visible='false'] *::after {
 .value-ready {
   animation: opacity-in 240ms ease-out both;
 }
+.help-content {
+  opacity: 1;
+  transition: opacity var(--motion-fast) ease-out;
+}
+.help-content[data-closing] {
+  opacity: 0;
+}
+@starting-style {
+  .help-content {
+    opacity: 0;
+  }
+}
+/* Keep panel motion inside the scroll container; do not animate its geometry. */
+.desk-panel > :not(.asset-view-content) {
+  animation: opacity-in 180ms ease-out both;
+}
+@media (max-width: 1000px) {
+  .desk-grid[data-mobile-pane='trade'] .desk-trade {
+    animation: opacity-in 180ms ease-out both;
+  }
+}
 /* Tactile controls: motion is short enough to keep the investment flow immediate. */
 .btn,
 .seg button,
@@ -385,6 +406,29 @@ html[data-page-visible='false'] *::after {
     box-shadow 220ms,
     translate 220ms var(--motion-ease),
     scale var(--motion-fast);
+}
+.help-trigger,
+.desk-mobile-switch button,
+.desk-disclosure > summary,
+.received-history > summary,
+.request-summary,
+.motion-toggle {
+  transition:
+    color var(--motion-fast),
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    box-shadow var(--motion-fast);
+}
+.desk-disclosure > summary:hover,
+.received-history > summary:hover,
+.request-summary:hover {
+  color: #e0f2ff;
+}
+.desk-disclosure > summary > svg {
+  transition: transform 220ms var(--motion-ease);
+}
+.desk-disclosure[open] > summary > svg {
+  transform: rotate(90deg);
 }
 .btn:active:not(:disabled),
 .seg button:active:not(:disabled),
@@ -448,11 +492,17 @@ html[data-page-visible='false'] *::after {
   selector(details::details-content) {
   .liquidity-panel,
   .investment-access,
+  .desk-disclosure,
+  .received-history,
+  .request-row,
   .catalog-guide {
     interpolate-size: allow-keywords;
   }
   .liquidity-panel::details-content,
   .investment-access::details-content,
+  .desk-disclosure::details-content,
+  .received-history::details-content,
+  .request-row::details-content,
   .catalog-guide::details-content {
     block-size: 0;
     opacity: 0;
@@ -464,6 +514,9 @@ html[data-page-visible='false'] *::after {
   }
   .liquidity-panel[open]::details-content,
   .investment-access[open]::details-content,
+  .desk-disclosure[open]::details-content,
+  .received-history[open]::details-content,
+  .request-row[open]::details-content,
   .catalog-guide[open]::details-content {
     block-size: auto;
     opacity: 1;

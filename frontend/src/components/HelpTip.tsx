@@ -8,6 +8,7 @@ import {
   type ReactNode
 } from 'react'
 import { createPortal } from 'react-dom'
+import { useMotionPreference } from './Motion'
 
 export function HelpTip({
   label,
@@ -19,11 +20,14 @@ export function HelpTip({
   const id = useId()
   const trigger = useRef<HTMLButtonElement>(null)
   const tooltip = useRef<HTMLSpanElement>(null)
+  const { paused, reduced } = useMotionPreference()
+  const [closing, setClosing] = useState(false)
   const [position, setPosition] = useState<{
     top: number
     left: number
   } | null>(null)
   function show() {
+    setClosing(false)
     const rect = trigger.current?.getBoundingClientRect()
     if (rect)
       setPosition({
@@ -31,6 +35,19 @@ export function HelpTip({
         left: Math.max(12, Math.min(rect.left - 120, innerWidth - 280))
       })
   }
+  function close() {
+    if (paused || reduced) setPosition(null)
+    else setClosing(true)
+  }
+  useEffect(() => {
+    if (!closing) return
+    // Also clean up when motion is disabled during an exit or the tab is hidden.
+    const timer = window.setTimeout(
+      () => setPosition(null),
+      paused || reduced ? 0 : 160
+    )
+    return () => window.clearTimeout(timer)
+  }, [closing, paused, reduced])
   useLayoutEffect(() => {
     if (!position || !tooltip.current || !trigger.current) return
     const anchor = trigger.current.getBoundingClientRect()
@@ -56,7 +73,6 @@ export function HelpTip({
   }, [position])
   useEffect(() => {
     if (!position) return
-    const close = () => setPosition(null)
     const onScroll = (event: Event) => {
       const button = trigger.current
       const rect = button?.getBoundingClientRect()
@@ -80,7 +96,7 @@ export function HelpTip({
       window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('resize', close)
     }
-  }, [position])
+  }, [position, paused, reduced])
   return (
     <span className="help-tip">
       <button
@@ -88,16 +104,16 @@ export function HelpTip({
         type="button"
         className="help-trigger"
         aria-label={label}
-        aria-describedby={position ? id : undefined}
+        aria-describedby={position && !closing ? id : undefined}
         onMouseEnter={show}
-        onMouseLeave={() => setPosition(null)}
+        onMouseLeave={close}
         onFocus={show}
-        onBlur={() => setPosition(null)}
+        onBlur={close}
         onClick={show}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.stopPropagation()
-            setPosition(null)
+            close()
           }
         }}
       >
@@ -110,6 +126,8 @@ export function HelpTip({
             id={id}
             role="tooltip"
             className="help-content"
+            data-closing={closing || undefined}
+            aria-hidden={closing || undefined}
             style={position}
           >
             {children}

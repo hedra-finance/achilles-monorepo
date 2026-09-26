@@ -637,13 +637,13 @@
   margin-right: 15px;
   color: #809db6;
 }
-.received-history[open] {
+.received-history {
   max-height: 260px;
   overflow: auto;
   flex-shrink: 0;
 }
-.received-history[open] > summary {
-  margin-bottom: 16px;
+.received-history > :not(summary) {
+  margin-top: 16px;
 }
 .request-list {
   overflow-y: auto;
