@@ -32,7 +32,7 @@ const QUESTIONS = [
   ],
   [
     'What do I need to invest?',
-    'Connect a wallet on Sepolia, obtain access with the team’s invite code, and fund it with gas and the configured test USDC. The product page checks each prerequisite before submission.'
+    'Connect a wallet on Sepolia. Senior access uses World ID; Junior access uses a team invite code. Fund your wallet with test ETH and the test USDC faucet. The product page checks each prerequisite before submission.'
   ],
   [
     'Can I withdraw immediately?',
@@ -154,7 +154,7 @@ export function Landing() {
             </div>
             <h3>Stablecoin liquidity</h3>
             <p>
-              A USDC / USDT test pool. Trading fees contribute to the strategy
+              A Uniswap V2 USDC / USDT pair on Sepolia. Trading fees contribute to the strategy
               alongside stock exposure.
             </p>
             <div
@@ -285,12 +285,12 @@ export function Landing() {
             [
               'shield',
               'Get access',
-              'Use the team’s invite code to obtain investment permission.'
+              'Verify with World ID for Senior, or use a team invite for Junior.'
             ],
             [
               'coins',
               'Fund',
-              'Have Sepolia ETH for gas and the configured test USDC ready.'
+              'Get test ETH and top up test USDC from the investment ticket.'
             ],
             [
               'check',

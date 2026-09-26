@@ -4,7 +4,8 @@ import { client, hubClient, hub } from './chains'
 import { PRODUCT } from './product'
 
 /** Keeper cadence override, matching MC_INTERVAL_SECS on the settlement bot. */
-const settleOverride = Number(process.env.NEXT_PUBLIC_SETTLE_SECS ?? 0) || 0
+const requestedCadence = Number(process.env.NEXT_PUBLIC_SETTLE_SECS ?? 0)
+const settleOverride = Number.isSafeInteger(requestedCadence) && requestedCadence > 0 ? requestedCadence : 0
 import {
   PRECOMPILE, trancheSystemAbi, investmentsAbi, permissionsAbi, txRegistryAbi,
   vaultAbi, erc20Abi, basketAdapterAbi, uniV3PoolAbi, lpAdapterAbi, uniV2PoolAbi, adapterNameAbi,
@@ -22,7 +23,7 @@ export type Product = {
   baseAsset: Address; valuation: Address; decimals: number
   settlement: { start: number; length: number; offset: number }
   tranches: Tranche[]
-  /** Chains that receive capital (allocator weight > 0) */
+  /** Supported user entry chains with active capital allocation. */
   depositChains: number[]
 }
 

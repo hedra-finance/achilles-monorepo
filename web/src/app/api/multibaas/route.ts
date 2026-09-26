@@ -1,60 +1,77 @@
 import { NextResponse } from 'next/server'
+import { isRecord } from '@/lib/human-proof'
 
-/**
- * Sepolia on-chain activity, read through MultiBaas.
- *
- * Everything else in this app reads the chains directly, which is fine for current state but poor
- * for history: an RPC log scan over a public endpoint is slow, rate-limited, and gives back raw
- * topics we would have to decode ourselves. MultiBaas indexes the contracts we registered and
- * returns decoded events, so this is the one place a hosted indexer earns its keep.
- *
- * The key stays on the server: MultiBaas keys are bearer tokens with write scope on the deployment.
- */
+/** Indexed events only; credentials and the upstream deployment URL stay on the server. */
 export async function GET(req: Request) {
+  const input = new URL(req.url).searchParams.get('limit')
+  const limit = input === null ? 25 : Number(input)
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    return NextResponse.json(
+      { error: 'Limit must be an integer from 1 to 50.' },
+      { status: 400 }
+    )
+  }
   const base = process.env.MULTIBAAS_URL?.replace(/\/$/, '')
   const key = process.env.MULTIBAAS_ACHILLES_READER
-  if (!base || !key) return NextResponse.json({ error: 'MultiBaas is not configured' }, { status: 503 })
-
-  const limit = Number(new URL(req.url).searchParams.get('limit') ?? 25)
-  const url = `${base}/api/v0/events?limit=${Math.min(limit, 50)}`
+  if (!base || !key)
+    return NextResponse.json(
+      { error: 'Indexed activity is not configured on this deployment.' },
+      { status: 503 }
+    )
   const call = () =>
-    fetch(url, {
+    fetch(`${base}/api/v0/events?limit=${limit}`, {
       headers: { Authorization: `Bearer ${key}` },
-      // Events are append-only; a short cache keeps a polling panel from burning the monthly call budget.
       next: { revalidate: 10 },
+      signal: AbortSignal.timeout(8_000)
     })
-  // One retry: the hosted endpoint occasionally fails to connect and the throw would surface as an
-  // opaque 500 in the panel, even though the next call succeeds in well under a second.
-  let r: Response
   try {
-    r = await call()
+    const response = await call().catch(() => call())
+    if (!response.ok)
+      return NextResponse.json(
+        { error: 'Indexed activity is temporarily unavailable.' },
+        { status: 502 }
+      )
+    const data: unknown = await response.json().catch(() => null)
+    if (!isRecord(data) || !Array.isArray(data.result))
+      throw new Error('Invalid event response')
+    const events = data.result.map((entry: unknown) => {
+      if (!isRecord(entry) || !isRecord(entry.event))
+        throw new Error('Invalid event')
+      const event = entry.event
+      const contract = isRecord(event.contract) ? event.contract : {}
+      const tx = isRecord(entry.transaction) ? entry.transaction : {}
+      return {
+        name: typeof event.name === 'string' ? event.name : 'Event',
+        contract: String(
+          contract.addressLabel ?? contract.addressAlias ?? contract.label ?? ''
+        ),
+        at:
+          typeof entry.triggeredAt === 'string' &&
+          Number.isFinite(Date.parse(entry.triggeredAt))
+            ? entry.triggeredAt
+            : null,
+        txHash:
+          typeof tx.txHash === 'string' && /^0x[0-9a-fA-F]{64}$/.test(tx.txHash)
+            ? tx.txHash
+            : null,
+        block:
+          typeof tx.blockNumber === 'number' &&
+          Number.isSafeInteger(tx.blockNumber)
+            ? tx.blockNumber
+            : null,
+        fields: Array.isArray(event.inputs)
+          ? event.inputs.filter(isRecord).map((i) => ({
+              name: String(i.name ?? ''),
+              value: String(i.value ?? '')
+            }))
+          : []
+      }
+    })
+    return NextResponse.json({ events })
   } catch {
-    try {
-      r = await call()
-    } catch (e) {
-      return NextResponse.json({ error: `Could not reach MultiBaas: ${(e as Error).message}` }, { status: 502 })
-    }
+    return NextResponse.json(
+      { error: 'Could not load indexed activity. Please retry.' },
+      { status: 502 }
+    )
   }
-  const j = await r.json().catch(() => ({}))
-  if (!r.ok) return NextResponse.json({ error: j?.message ?? 'MultiBaas request failed' }, { status: r.status })
-
-  type RawEvent = {
-    // The contract that emitted it sits under `event.contract`, not at the top level.
-    event?: {
-      name?: string
-      inputs?: { name?: string; value?: unknown }[]
-      contract?: { addressAlias?: string; label?: string }
-    }
-    triggeredAt?: string
-    transaction?: { txHash?: string; blockNumber?: number }
-  }
-  const events = ((j.result ?? []) as RawEvent[]).map((e) => ({
-    name: e.event?.name ?? 'Event',
-    contract: e.event?.contract?.addressAlias ?? e.event?.contract?.label ?? '',
-    at: e.triggeredAt ?? null,
-    txHash: e.transaction?.txHash ?? null,
-    block: e.transaction?.blockNumber ?? null,
-    fields: (e.event?.inputs ?? []).map((i) => ({ name: i.name ?? '', value: String(i.value ?? '') })),
-  }))
-  return NextResponse.json({ events })
 }

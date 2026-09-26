@@ -1,5 +1,12 @@
 'use client'
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
+import { getAddress } from 'viem'
+import { worldIdConfigured } from '@/lib/worldid'
+import type { WorldContext } from './WorldVerification'
+const WorldVerification = dynamic(() => import('./WorldVerification'), {
+  ssr: false
+})
 import { useAccount, useSwitchChain } from 'wagmi'
 import { useAppKit } from '@reown/appkit/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -14,12 +21,14 @@ export function Access({
   type,
   mode,
   shares,
+  onChooseJunior,
   disabled = false
 }: {
   eligible: boolean | undefined
   type: 'Senior' | 'Junior'
   mode: 'invest' | 'redeem'
   shares?: bigint
+  onChooseJunior: () => void
   disabled?: boolean
 }) {
   const { address, chainId } = useAccount()
@@ -27,6 +36,8 @@ export function Access({
   const { open } = useAppKit()
   const qc = useQueryClient()
   const [code, setCode] = useState('')
+  const [worldContext, setWorldContext] = useState<WorldContext | null>(null)
+  const [accessPending, setAccessPending] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const funds = useQuery({
@@ -60,7 +71,7 @@ export function Access({
     { name: mode === 'invest' ? 'USDC' : 'Shares', done: hasAssets }
   ]
   const done = steps.filter((s) => s.done).length
-  const blocked = disabled || !!busy
+  const blocked = disabled || !!busy || !!worldContext
   async function post(path: string, body: object, label: string) {
     setBusy(label)
     setMsg(null)
@@ -79,17 +90,45 @@ export function Access({
         ok: true,
         text:
           label === 'Access'
-            ? 'Access granted on the hub. Vault permissions may take a moment to update.'
+            ? j?.pending
+              ? 'Access request submitted. Waiting for the permission to reach your vault.'
+              : 'Access is registered. Checking your vault permission.'
             : j?.skipped
-              ? 'Your wallet already has testnet gas.'
-              : 'Testnet gas sent to your wallet.'
+              ? `Your wallet already has enough ${label === 'USDC' ? 'test USDC' : 'testnet ETH'}.`
+              : `${label === 'USDC' ? 'Test USDC' : 'Testnet ETH'} confirmed. Refreshing your balance.`
       })
+      if (label === 'Access') setAccessPending(true)
       void qc.invalidateQueries({ queryKey: ['account'] })
       void qc.invalidateQueries({ queryKey: ['funding'] })
+      return true
     } catch (e) {
       setMsg({
         ok: false,
         text: e instanceof Error ? e.message : 'Could not complete the request.'
+      })
+      return false
+    } finally {
+      setBusy(null)
+    }
+  }
+  async function startWorld() {
+    setBusy('World ID')
+    setMsg(null)
+    try {
+      const response = await fetch('/api/worldid', { cache: 'no-store' })
+      const data = await response.json().catch(() => null)
+      if (!response.ok || !data?.rp_context)
+        throw new Error(
+          data?.error ?? 'Verification is temporarily unavailable.'
+        )
+      setWorldContext(data)
+    } catch (error) {
+      setMsg({
+        ok: false,
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Could not start verification.'
       })
     } finally {
       setBusy(null)
@@ -152,42 +191,119 @@ export function Access({
           </div>
         )}
         {address && mode === 'invest' && eligible !== true && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              if (code.trim())
-                void post(
-                  '/api/whitelist',
-                  { address, code: code.trim() },
-                  'Access'
-                )
-            }}
-          >
-            <label htmlFor="invite-code">
-              {type} access{' '}
-              <small>
-                {eligible == null
-                  ? 'Awaiting permission data'
-                  : 'Invite required'}
-              </small>
-            </label>
-            <div className="invite-input">
-              <input
-                id="invite-code"
-                autoComplete="off"
-                placeholder="Team invite code"
-                value={code}
-                disabled={blocked}
-                onChange={(e) => setCode(e.target.value)}
-              />
-              <button
-                className="btn sm"
-                disabled={blocked || !code.trim() || !hubConfigured}
-              >
-                {busy === 'Access' ? 'Requesting…' : 'Get access'}
-              </button>
+          <div className="tranche-access">
+            <div className="access-policy-title">
+              <Icon name={type === 'Senior' ? 'shield' : 'layers'} size={17} />
+              <strong>{type} access</strong>
             </div>
-          </form>
+            {accessPending && (
+              <p className="access-pending" role="status">
+                <Icon name="clock" size={14} />
+                Permission is syncing. We check it automatically; your deposit
+                unlocks after confirmation.
+              </p>
+            )}
+            {type === 'Senior' ? (
+              <>
+                <p>
+                  World ID links one verified human to one wallet for Senior
+                  access. Achilles receives a verification proof, not your
+                  personal identity details.
+                </p>
+                {worldIdConfigured() ? (
+                  <button
+                    className="btn primary sm"
+                    disabled={blocked || !hubConfigured}
+                    onClick={() => void startWorld()}
+                  >
+                    {busy === 'World ID'
+                      ? 'Opening verification…'
+                      : accessPending
+                        ? 'Retry Senior access'
+                        : 'Verify with World ID'}
+                  </button>
+                ) : (
+                  <p className="market-disclosure">
+                    World ID verification is not configured on this deployment
+                    yet.
+                  </p>
+                )}
+                <p className="access-alternative">
+                  No supported World ID credential, or prefer not to verify?
+                </p>
+                <button
+                  className="text-link"
+                  disabled={blocked}
+                  onClick={onChooseJunior}
+                >
+                  Explore Junior with an invite <Icon name="arrow" size={12} />
+                </button>
+                <small className="market-disclosure">
+                  Junior takes losses first. Switching layers changes your risk
+                  exposure.
+                </small>
+              </>
+            ) : (
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  if (code.trim())
+                    void post(
+                      '/api/whitelist',
+                      { address, tranche: 'junior', code: code.trim() },
+                      'Access'
+                    )
+                }}
+              >
+                <p>
+                  Junior uses the team’s invite code. World ID is not required
+                  for this first-loss layer.
+                </p>
+                <label htmlFor="invite-code">Junior invite code</label>
+                <div className="invite-input">
+                  <input
+                    id="invite-code"
+                    autoComplete="off"
+                    placeholder="Team invite code"
+                    value={code}
+                    disabled={blocked}
+                    onChange={(event) => setCode(event.target.value)}
+                  />
+                  <button
+                    className="btn sm"
+                    disabled={blocked || !code.trim() || !hubConfigured}
+                  >
+                    {busy === 'Access'
+                      ? 'Requesting…'
+                      : accessPending
+                        ? 'Retry access'
+                        : 'Get Junior access'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+        {address && worldContext && (
+          <WorldVerification
+            context={worldContext}
+            address={getAddress(address)}
+            verify={(proof) =>
+              post(
+                '/api/whitelist',
+                { address: getAddress(address), tranche: 'senior', proof },
+                'Access'
+              )
+            }
+            close={(completed) => {
+              setWorldContext(null)
+              if (!completed)
+                setMsg({
+                  ok: false,
+                  text: 'Verification closed. Senior stays locked until access is confirmed. Retry or explore Junior.'
+                })
+            }}
+          />
         )}
         {address && (
           <>
@@ -223,36 +339,32 @@ export function Access({
                 </button>
               </div>
             )}
-            {mode === 'invest' && !hasAssets && (
+            {mode === 'invest' && (
               <div className="funding-note">
-                <strong>Need test USDC?</strong>
+                <strong>Test USDC faucet</strong>
                 <p>
-                  Ask the team to fund this wallet with the strategy’s Sepolia
-                  test token.
+                  Top up to 1,000 test USDC on Sepolia. The faucet pays its own
+                  gas; your deposit still needs test ETH.
                 </p>
+                <button
+                  className="btn sm"
+                  disabled={
+                    blocked ||
+                    funds.isPending ||
+                    funds.isError ||
+                    (funds.data?.usdc ?? 0n) >= 1_000_000_000n
+                  }
+                  onClick={() => void post('/api/faucet', { address }, 'USDC')}
+                >
+                  {busy === 'USDC'
+                    ? 'Funding…'
+                    : (funds.data?.usdc ?? 0n) >= 1_000_000_000n
+                      ? 'Test USDC funded'
+                      : 'Get test USDC'}
+                </button>
                 <span className="mono" title={PRODUCT.sepolia.usdc}>
                   {short(PRODUCT.sepolia.usdc)}
                 </span>
-                <button
-                  className="text-link"
-                  disabled={blocked}
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(PRODUCT.sepolia.usdc)
-                      setMsg({
-                        ok: true,
-                        text: 'Test USDC contract address copied.'
-                      })
-                    } catch {
-                      setMsg({
-                        ok: false,
-                        text: `Test USDC contract: ${PRODUCT.sepolia.usdc}`
-                      })
-                    }
-                  }}
-                >
-                  Copy token address
-                </button>
               </div>
             )}
             {mode === 'redeem' && !hasAssets && (

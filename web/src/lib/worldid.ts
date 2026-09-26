@@ -4,9 +4,14 @@ export const WORLD_ID = {
   rpId: process.env.NEXT_PUBLIC_WORLD_RP_ID ?? '',
   /** What the person is proving uniqueness for. Scopes the nullifier, so it must not change. */
   action: 'senior-allocation',
-  verifyUrl: (rpId: string) => `https://developer.world.org/api/v4/verify/${rpId}`,
+  verifyUrl: (rpId: string) =>
+    `https://developer.world.org/api/v4/verify/${rpId}`,
   /** Production credentials; staging apps issue proofs the production verifier rejects. */
-  environment: (process.env.NEXT_PUBLIC_WORLD_ENV ?? 'production') as 'production' | 'staging',
+  environment: (process.env.NEXT_PUBLIC_WORLD_ENV ?? 'production') as
+    'production' | 'staging'
 }
 
-export const worldIdConfigured = () => WORLD_ID.appId.startsWith('app_') && WORLD_ID.rpId !== ''
+export const worldIdConfigured = () =>
+  WORLD_ID.appId.startsWith('app_') &&
+  WORLD_ID.rpId.startsWith('rp_') &&
+  (WORLD_ID.environment === 'production' || WORLD_ID.environment === 'staging')

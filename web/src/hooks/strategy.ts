@@ -2,7 +2,7 @@
 import { useOverview, useProduct } from './data'
 import { PRODUCT } from '@/lib/product'
 import { hubConfigured } from '@/lib/chains'
-import { juniorYieldPercent } from '@/lib/math'
+import { displayYieldPercent } from '@/lib/math'
 
 export function useStrategySnapshot() {
   const product = useProduct()
@@ -17,7 +17,7 @@ export function useStrategySnapshot() {
       (t) => t.type === 'Junior' && t.chainId === PRODUCT.entryChains[0]
     ) ?? -1
   const history = overview.data?.history ?? []
-  const junior = juniorYieldPercent(
+  const junior = displayYieldPercent(
     history.map((h) => ({
       at: h.at,
       price: h.sharePrices[jr] == null ? null : Number(h.sharePrices[jr]) / 1e18
