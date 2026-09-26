@@ -14,7 +14,7 @@
     "orchestratorReused": true,
     "valuation": "0x91AE8165d5f267a8F4C819c6CD2A39DF7A576Ce1",
     "valuationFacets": {
-      "SettlementFacet": "0xBF5F06b5582A720060B41586439E13BCaf562dAf",
+      "SettlementFacet": "0x23a1F311411aA4f6806F0A53CB96d9ED454Bf31b",
       "IntakeFacet": "0xf460d6815bC65cAcdD7F02d61855069257941bB0",
       "DiamondCutFacet": "0x9d3DEA900e2b0893b1f314A8f999291A7bCD5244",
       "DiamondLoupeFacet": "0x7aE3652328eaA120D65726491A80F1Cc36193B81",
