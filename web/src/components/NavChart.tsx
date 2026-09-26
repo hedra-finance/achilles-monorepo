@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import type { Settlement } from '@/lib/reads'
 import { fmt } from '@/lib/math'
+import { DataSkeleton } from './Skeleton'
 import { Icon } from './Icon'
 
 const RANGES = [
@@ -14,8 +15,10 @@ export function NavChart({
   history,
   sr,
   jr,
+  loading = false,
   selected = 'Senior'
 }: {
+  loading?: boolean
   history: Settlement[]
   sr: number
   jr: number
@@ -120,7 +123,9 @@ export function NavChart({
           ))}
         </div>
       </div>
-      {!enough ? (
+      {loading ? (
+        <DataSkeleton kind="chart" label="Loading finalized share prices" />
+      ) : !enough ? (
         <div className="chart-empty">
           <span>
             <Icon name="chart" size={18} />

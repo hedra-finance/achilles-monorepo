@@ -1,5 +1,10 @@
+import { PageMotion } from '@/components/Motion'
 import { Landing } from '@/components/Landing'
 
 export default function Home() {
-  return <Landing />
+  return (
+    <PageMotion>
+      <Landing />
+    </PageMotion>
+  )
 }

@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { Providers } from './providers'
+import { MotionProvider } from '@/components/Motion'
 import { Shell } from '@/components/Shell'
 import './globals.css'
 import './experience.css'
 import './markets.css'
 import './landing.css'
+import './motion.css'
 
 export const metadata: Metadata = {
   title: 'Achilles | Structured cross-chain yield',
@@ -24,7 +26,9 @@ export default async function RootLayout({
     <html lang="en">
       <body>
         <Providers cookies={cookies}>
-          <Shell>{children}</Shell>
+          <MotionProvider>
+            <Shell>{children}</Shell>
+          </MotionProvider>
         </Providers>
       </body>
     </html>

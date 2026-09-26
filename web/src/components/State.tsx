@@ -1,5 +1,5 @@
 'use client'
-import Link from 'next/link'
+import { MotionLink as Link } from '@/components/MotionLink'
 import { useAppKit } from '@reown/appkit/react'
 import { Icon } from './Icon'
 

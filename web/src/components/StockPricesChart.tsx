@@ -7,6 +7,7 @@ import { fmt, pct } from '@/lib/math'
 import { PRODUCT } from '@/lib/product'
 import { stockDisplay } from '@/lib/stock-display'
 import { StockLogo } from './StockLogo'
+import { DataSkeleton } from './Skeleton'
 import { Icon } from './Icon'
 
 export function StockPricesChart({ history }: { history: Settlement[] }) {
@@ -85,10 +86,7 @@ export function StockPricesChart({ history }: { history: Settlement[] }) {
         </div>
       </div>
       {query.isFetching && !query.data ? (
-        <div className="chart-empty">
-          <Icon name="refresh" size={20} />
-          <span>Loading recorded stock prices…</span>
-        </div>
+        <DataSkeleton kind="chart" label="Loading recorded stock prices" />
       ) : !enough ? (
         <div className="chart-empty">
           <Icon name="chart" size={22} />

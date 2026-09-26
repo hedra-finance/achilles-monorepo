@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import Link from 'next/link'
+import { MotionLink as Link } from '@/components/MotionLink'
 import Image from 'next/image'
 import { PRODUCT } from '@/lib/product'
 import { fmt, pct } from '@/lib/math'
@@ -8,6 +8,8 @@ import { useStrategySnapshot } from '@/hooks/strategy'
 import { YieldFlow, type RiskLayer } from './YieldFlow'
 import { RiskExplainer } from './RiskExplainer'
 import { StockLogo } from './StockLogo'
+import { MotionToggle } from './Motion'
+import { LoadingValue } from './Skeleton'
 import { Icon } from './Icon'
 
 const QUESTIONS = [
@@ -82,6 +84,7 @@ export function Landing() {
           onSelect={setSelected}
         />
         <div className="hero-continue">
+          <MotionToggle />
           <span>
             <span className="status-dot amber" /> SEPOLIA TESTNET <i /> USDC
             SETTLEMENT <i /> TWO RISK LAYERS
@@ -94,6 +97,7 @@ export function Landing() {
 
       <section
         id="strategy"
+        data-reveal
         className="landing-section landing-underlying"
         aria-labelledby="underlying-title"
       >
@@ -173,6 +177,7 @@ export function Landing() {
 
       <section
         id="tranches"
+        data-reveal
         className="landing-section landing-tranches"
         aria-labelledby="tranches-title"
       >
@@ -216,9 +221,11 @@ export function Landing() {
               </p>
               <div className="landing-rate">
                 <strong>
-                  {layer === 'Senior'
-                    ? pct(s.seniorApr)
-                    : pct(s.junior.percent)}
+                  <LoadingValue loading={s.loading}>
+                    {layer === 'Senior'
+                      ? pct(s.seniorApr)
+                      : pct(s.junior.percent)}
+                  </LoadingValue>
                 </strong>
                 <span>
                   {layer === 'Senior'
@@ -253,6 +260,7 @@ export function Landing() {
 
       <section
         id="access"
+        data-reveal
         className="landing-section landing-access"
         aria-labelledby="access-title"
       >
@@ -307,6 +315,7 @@ export function Landing() {
 
       <section
         id="settlement"
+        data-reveal
         className="landing-section landing-settlement"
         aria-labelledby="settlement-title"
       >
@@ -359,18 +368,28 @@ export function Landing() {
               <div>
                 <dt>Strategy NAV</dt>
                 <dd>
-                  {fmt(s.last?.productNav, s.decimals)} <small>USDC</small>
+                  <LoadingValue loading={s.loading}>
+                    {fmt(s.last?.productNav, s.decimals)}
+                  </LoadingValue>{' '}
+                  <small>USDC</small>
                 </dd>
               </div>
               <div>
                 <dt>Senior share price</dt>
                 <dd>
-                  {fmt(s.seniorPrice, 18, 6)} <small>USDC</small>
+                  <LoadingValue loading={s.loading}>
+                    {fmt(s.seniorPrice, 18, 6)}
+                  </LoadingValue>{' '}
+                  <small>USDC</small>
                 </dd>
               </div>
               <div>
                 <dt>Latest finalized round</dt>
-                <dd>{s.last ? `#${s.last.id}` : '—'}</dd>
+                <dd>
+                  <LoadingValue loading={s.loading}>
+                    {s.last ? `#${s.last.id}` : '—'}
+                  </LoadingValue>
+                </dd>
               </div>
             </dl>
             <p>
@@ -393,6 +412,7 @@ export function Landing() {
 
       <section
         id="vision"
+        data-reveal
         className="landing-section landing-vision"
         aria-labelledby="vision-title"
       >
@@ -424,6 +444,7 @@ export function Landing() {
 
       <section
         id="faq"
+        data-reveal
         className="landing-section landing-faq"
         aria-labelledby="faq-title"
       >
@@ -447,7 +468,7 @@ export function Landing() {
           ))}
         </div>
       </section>
-      <section className="landing-final">
+      <section data-reveal className="landing-final">
         <span className="eyebrow">KNOW THE RISK. CHOOSE YOUR LAYER.</span>
         <h2>
           Your capital.

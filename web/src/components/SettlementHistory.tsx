@@ -5,6 +5,7 @@ import { useSettlementProgress } from '@/hooks/data'
 import { fmt } from '@/lib/math'
 import { chainLabel } from '@/lib/chains'
 import { Steps } from './Steps'
+import { DataSkeleton } from './Skeleton'
 import { Icon } from './Icon'
 
 export function SettlementHistory({
@@ -12,13 +13,15 @@ export function SettlementHistory({
   sr,
   jr,
   decimals,
-  unavailable
+  unavailable,
+  loading = false
 }: {
   history: Settlement[]
   sr: number
   jr: number
   decimals: number
   unavailable: boolean
+  loading?: boolean
 }) {
   const [count, setCount] = useState(5)
   const [round, setRound] = useState<number | null>(null)
@@ -65,7 +68,9 @@ export function SettlementHistory({
           Export CSV
         </button>
       </div>
-      {!sorted.length ? (
+      {loading ? (
+        <DataSkeleton label="Loading settlement history" rows={4} />
+      ) : !sorted.length ? (
         <p className="table-empty">
           {unavailable
             ? 'Settlement history is unavailable. Retry the network connection above.'
@@ -156,7 +161,7 @@ export function SettlementHistory({
                 </button>
               </p>
             ) : !progress.data ? (
-              <p>Loading cycle…</p>
+              <DataSkeleton label="Loading settlement cycle" rows={2} />
             ) : !progress.data.started.done &&
               progress.data.chains.length === 0 ? (
               <p className="market-disclosure">

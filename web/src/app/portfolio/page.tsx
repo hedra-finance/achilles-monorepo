@@ -1,5 +1,7 @@
 'use client'
-import Link from 'next/link'
+import { PageMotion } from '@/components/Motion'
+import { DataSkeleton } from '@/components/Skeleton'
+import { MotionLink as Link } from '@/components/MotionLink'
 import { WalletEmpty, QueryNotice, PageHeading } from '@/components/State'
 import { hubConfigured } from '@/lib/chains'
 import { useAccount } from 'wagmi'
@@ -13,6 +15,13 @@ import { chainLabel, txUrl } from '@/lib/chains'
 import { fmt, short } from '@/lib/math'
 
 export default function PortfolioPage() {
+  return (
+    <PageMotion>
+      <PortfolioContent />
+    </PageMotion>
+  )
+}
+function PortfolioContent() {
   const { address } = useAccount()
   const product = useProduct()
   const p = product.data
@@ -62,9 +71,8 @@ export default function PortfolioPage() {
     return (
       <>
         {heading}
-        <QueryNotice title="Loading your positions…">
-          Reading your balances and requests from the networks.
-        </QueryNotice>
+        <DataSkeleton kind="metrics" label="Loading your positions" />
+        <DataSkeleton label="Loading balances and requests" />
       </>
     )
   const last = ov.data?.last
@@ -190,7 +198,7 @@ export default function PortfolioPage() {
             }}
           />
         ) : !recv.data ? (
-          <p className="sub">Loading received claims…</p>
+          <DataSkeleton label="Loading received claims" rows={2} />
         ) : !recv.data.length ? (
           <div className="sub">Your completed claims will appear here.</div>
         ) : (
@@ -209,22 +217,26 @@ export default function PortfolioPage() {
                 {recv.data.map((r) => {
                   const url = txUrl(r.chainId, r.txHash)
                   return (
-                  <tr key={r.txHash}>
-                    <td>{r.at?.toLocaleString() ?? '—'}</td>
-                    <td>{r.kind === 'deposit' ? 'Shares' : 'USDC'}</td>
-                    <td>{chainLabel(r.chainId)}</td>
-                    <td className="num">{fmt(r.amount, dec, 4)}</td>
-                    <td>
-                      {url ? <a
-                        className="mono"
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {short(r.txHash)}
-                      </a> : <span className="mono">{short(r.txHash)}</span>}
-                    </td>
-                  </tr>
+                    <tr key={r.txHash}>
+                      <td>{r.at?.toLocaleString() ?? '—'}</td>
+                      <td>{r.kind === 'deposit' ? 'Shares' : 'USDC'}</td>
+                      <td>{chainLabel(r.chainId)}</td>
+                      <td className="num">{fmt(r.amount, dec, 4)}</td>
+                      <td>
+                        {url ? (
+                          <a
+                            className="mono"
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {short(r.txHash)}
+                          </a>
+                        ) : (
+                          <span className="mono">{short(r.txHash)}</span>
+                        )}
+                      </td>
+                    </tr>
                   )
                 })}
               </tbody>

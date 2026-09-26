@@ -1,3 +1,4 @@
+import { PageMotion } from '@/components/Motion'
 import type { Metadata } from 'next'
 import { ProductDetail } from '@/components/ProductDetail'
 
@@ -10,5 +11,9 @@ export default async function Page({
 }) {
   const { tranche } = await searchParams
   const layer = tranche === 'junior' ? 'Junior' : 'Senior'
-  return <ProductDetail key={layer} initialLayer={layer} />
+  return (
+    <PageMotion>
+      <ProductDetail key={layer} initialLayer={layer} />
+    </PageMotion>
+  )
 }

@@ -1,5 +1,7 @@
 'use client'
-import Link from 'next/link'
+import { PageMotion } from '@/components/Motion'
+import { DataSkeleton } from '@/components/Skeleton'
+import { MotionLink as Link } from '@/components/MotionLink'
 import { WalletEmpty, QueryNotice, PageHeading } from '@/components/State'
 import { hubConfigured } from '@/lib/chains'
 import { useAccount } from 'wagmi'
@@ -17,6 +19,13 @@ const PHASE: Record<string, [string, string]> = {
 
 /** Per-request cross-chain progress — steps, tx hashes and timestamps straight from the hub request registry. */
 export default function ActivityPage() {
+  return (
+    <PageMotion>
+      <ActivityContent />
+    </PageMotion>
+  )
+}
+function ActivityContent() {
   const { address } = useAccount()
   const product = useProduct()
   const p = product.data
@@ -63,7 +72,7 @@ export default function ActivityPage() {
     return (
       <>
         {heading}
-        <QueryNotice title="Loading your requests…" />
+        <DataSkeleton label="Loading your requests" />
       </>
     )
   if (act.data.length === 0)

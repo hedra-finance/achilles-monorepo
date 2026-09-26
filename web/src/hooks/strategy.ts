@@ -34,6 +34,6 @@ export function useStrategySnapshot() {
       product.isError ||
       overview.isError ||
       !!overview.data?.issues.length,
-    loading: hubConfigured && (product.isPending || overview.isPending)
+    loading: hubConfigured && (product.isPending || (!!p && overview.isPending))
   }
 }

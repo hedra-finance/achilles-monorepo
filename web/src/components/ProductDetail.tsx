@@ -1,6 +1,6 @@
 'use client'
 import Image from 'next/image'
-import Link from 'next/link'
+import { MotionLink as Link } from '@/components/MotionLink'
 import { useState } from 'react'
 import { useAccount } from 'wagmi'
 import { useProduct, useOverview, useAccountData } from '@/hooks/data'
@@ -14,6 +14,7 @@ import type { RiskLayer } from '@/components/YieldFlow'
 import { RiskExplainer } from '@/components/RiskExplainer'
 import { fmt, pct, juniorYieldPercent } from '@/lib/math'
 import { hubConfigured } from '@/lib/chains'
+import { LoadingValue } from './Skeleton'
 import { PRODUCT } from '@/lib/product'
 
 export function ProductDetail({
@@ -56,6 +57,7 @@ export function ProductDetail({
       ? (position.shares * sharePrice) / 10n ** 18n
       : null
   const dataUnavailable = !hubConfigured || product.isError || ov.isError
+  const loading = hubConfigured && (product.isPending || (!!p && ov.isPending))
   return (
     <div className="market-experience">
       <nav className="product-breadcrumb" aria-label="Breadcrumb">
@@ -108,7 +110,10 @@ export function ProductDetail({
         <div>
           <small>STRATEGY NAV</small>
           <strong>
-            {fmt(last?.productNav, dec)} <span>USDC</span>
+            <LoadingValue loading={loading}>
+              {fmt(last?.productNav, dec)}
+            </LoadingValue>{' '}
+            <span>USDC</span>
           </strong>
         </div>
         <div>
@@ -203,7 +208,9 @@ export function ProductDetail({
                     <span className="radio-indicator" />
                   </div>
                   <span className="layer-yield">
-                    {layer === 'Senior' ? pct(srApr) : pct(jrY.percent)}
+                    <LoadingValue loading={loading}>
+                      {layer === 'Senior' ? pct(srApr) : pct(jrY.percent)}
+                    </LoadingValue>
                     <small>
                       {layer === 'Senior'
                         ? 'Target APR'
@@ -231,12 +238,20 @@ export function ProductDetail({
             >
               <div>
                 <span>SHARE PRICE</span>
-                <strong>{fmt(sharePrice, 18, 6)}</strong>
+                <strong>
+                  <LoadingValue loading={loading}>
+                    {fmt(sharePrice, 18, 6)}
+                  </LoadingValue>
+                </strong>
                 <small>USDC / {selected} share</small>
               </div>
               <div>
                 <span>TRANCHE NAV</span>
-                <strong>{fmt(last?.trancheNavs[index], dec)}</strong>
+                <strong>
+                  <LoadingValue loading={loading}>
+                    {fmt(last?.trancheNavs[index], dec)}
+                  </LoadingValue>
+                </strong>
                 <small>USDC · finalized</small>
               </div>
               <div>
@@ -273,9 +288,16 @@ export function ProductDetail({
                 {selected}
               </span>
             </div>
-            <NavChart history={hist} sr={sr} jr={jr} selected={selected} />
+            <NavChart
+              loading={loading}
+              history={hist}
+              sr={sr}
+              jr={jr}
+              selected={selected}
+            />
           </section>
           <Allocation
+            sourcesLoading={loading}
             history={hist}
             product={p}
             sources={ov.data?.sources ?? []}
@@ -325,6 +347,7 @@ export function ProductDetail({
             </Link>
           </section>
           <SettlementHistory
+            loading={loading}
             history={hist}
             sr={sr}
             jr={jr}
@@ -354,6 +377,7 @@ export function ProductDetail({
             <span>SEPOLIA</span>
           </div>
           <Ticket
+            loading={loading}
             product={p}
             last={last}
             type={selected}

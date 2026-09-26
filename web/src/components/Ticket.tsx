@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import Link from 'next/link'
+import { MotionLink as Link } from '@/components/MotionLink'
 import { formatUnits, type Hex } from 'viem'
 import { useAccount, useConfig, useSwitchChain } from 'wagmi'
 import { getWalletClient } from 'wagmi/actions'
@@ -18,6 +18,7 @@ import { chainLabel, client, txUrl } from '@/lib/chains'
 import { fmt, parseTokenAmount } from '@/lib/math'
 import { useAccountData } from '@/hooks/data'
 import { PRODUCT } from '@/lib/product'
+import { LoadingValue } from './Skeleton'
 import { Icon } from './Icon'
 import { Access } from './Access'
 
@@ -25,12 +26,14 @@ type Mode = 'invest' | 'redeem'
 type Context = Parameters<typeof deposit>[0]
 export function Ticket({
   product,
+  loading = false,
   last,
   type,
   onTypeChange,
   onBusyChange
 }: {
   product?: Product
+  loading?: boolean
   last: Settlement | null
   type: 'Senior' | 'Junior'
   onTypeChange: (v: 'Senior' | 'Junior') => void
@@ -332,7 +335,10 @@ export function Ticket({
         </p>
         <div className="ticket-quote">
           <span>Last share price</span>
-          <strong>{fmt(price, 18, 6)} USDC</strong>
+          <strong>
+            <LoadingValue loading={loading}>{fmt(price, 18, 6)}</LoadingValue>{' '}
+            USDC
+          </strong>
         </div>
         {reviewing && ready && (
           <div className="request-review" role="status">
@@ -367,6 +373,7 @@ export function Ticket({
         ) : (
           <button
             className="btn primary full"
+            aria-busy={busy}
             disabled={busy || !ready}
             onClick={() =>
               !reviewing
@@ -382,6 +389,7 @@ export function Ticket({
                   )
             }
           >
+            {busy && <span className="busy-spinner" aria-hidden="true" />}
             {buttonText}
             {ready && !busy && <Icon name="arrow" size={16} />}
           </button>

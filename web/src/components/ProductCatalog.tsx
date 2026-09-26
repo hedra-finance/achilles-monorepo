@@ -1,10 +1,11 @@
 'use client'
 import { useState } from 'react'
-import Link from 'next/link'
+import { MotionLink as Link } from '@/components/MotionLink'
 import { PRODUCT } from '@/lib/product'
 import { fmt, pct } from '@/lib/math'
 import { useStrategySnapshot } from '@/hooks/strategy'
 import { Icon } from './Icon'
+import { LoadingValue } from './Skeleton'
 import { StockLogo } from './StockLogo'
 
 export function ProductCatalog() {
@@ -34,7 +35,10 @@ export function ProductCatalog() {
         <div>
           <span>RECORDED STRATEGY NAV</span>
           <strong>
-            {fmt(s.last?.productNav, s.decimals)} <small>USDC</small>
+            <LoadingValue loading={s.loading}>
+              {fmt(s.last?.productNav, s.decimals)}
+            </LoadingValue>{' '}
+            <small>USDC</small>
           </strong>
         </div>
         <div>
@@ -84,7 +88,7 @@ export function ProductCatalog() {
         </div>
       </div>
       {matches ? (
-        <div className={`catalog-results ${view}`}>
+        <div key={view} className={`catalog-results ${view} content-enter`}>
           {view === 'list' && (
             <div className="catalog-table-head" aria-hidden="true">
               <span>Product / underlying assets</span>
@@ -121,19 +125,31 @@ export function ProductCatalog() {
             </div>
             <div className="catalog-number">
               <small>Recorded NAV</small>
-              <strong>{fmt(s.last?.productNav, s.decimals)}</strong>
+              <strong>
+                <LoadingValue loading={s.loading}>
+                  {fmt(s.last?.productNav, s.decimals)}
+                </LoadingValue>
+              </strong>
               <span>USDC</span>
             </div>
             <div className="catalog-number senior">
               <small>Senior target APR</small>
-              <strong>{pct(s.seniorApr)}</strong>
+              <strong>
+                <LoadingValue loading={s.loading}>
+                  {pct(s.seniorApr)}
+                </LoadingValue>
+              </strong>
               <span>Priority yield</span>
             </div>
             <div className="catalog-number junior">
               <small>
                 Junior {s.junior.annualized ? 'realized APR' : 'period return'}
               </small>
-              <strong>{pct(s.junior.percent)}</strong>
+              <strong>
+                <LoadingValue loading={s.loading}>
+                  {pct(s.junior.percent)}
+                </LoadingValue>
+              </strong>
               <span>First-loss exposure</span>
             </div>
             <div className="catalog-network">

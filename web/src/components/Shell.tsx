@@ -1,10 +1,11 @@
 'use client'
 import { useState } from 'react'
-import Link from 'next/link'
+import { MotionLink as Link } from '@/components/MotionLink'
 import { usePathname } from 'next/navigation'
 import { useAccount } from 'wagmi'
 import { useAppKit } from '@reown/appkit/react'
 import { short } from '@/lib/math'
+import { MotionToggle } from './Motion'
 import { Brand } from './Brand'
 import { Icon } from './Icon'
 
@@ -113,6 +114,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </>
         )}
       </header>
+      <div className="route-progress" aria-hidden="true">
+        <i />
+      </div>
       <main id="main" className="ir-main">
         {children}
       </main>
@@ -123,6 +127,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </Link>
           <p>Know the risk. Choose your layer.</p>
           <small>Experimental protocol · Testnet assets</small>
+          <MotionToggle />
         </div>
         <nav aria-label="Explore Achilles">
           <strong>EXPLORE</strong>
