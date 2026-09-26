@@ -179,22 +179,26 @@ export function ProductCatalog() {
               : 'Awaiting the first recorded settlement.'}{' '}
         APR targets are not guaranteed returns.
       </p>
-      <details className="catalog-guide desk-disclosure">
+      <details className="catalog-guide">
         <summary>
           New to structured yield? <Icon name="chevron" size={14} />
         </summary>
-        <span className="eyebrow">BEFORE YOU INVEST</span>
-        <h2>Know the assets. Understand your layer.</h2>
-        <div>
-          <p>
-            <b>01</b> Inspect prices, holdings and allocation.
-          </p>
-          <p>
-            <b>02</b> Compare Senior and Junior exposure.
-          </p>
-          <p>
-            <b>03</b> Prepare your wallet, then review your request.
-          </p>
+        <div className="catalog-guide-body">
+          <span className="eyebrow">BEFORE YOU INVEST</span>
+          <h2>Know the assets. Understand your layer.</h2>
+          <ol className="catalog-guide-steps">
+            <li>
+              <b aria-hidden="true">01</b> Inspect prices, holdings and
+              allocation.
+            </li>
+            <li>
+              <b aria-hidden="true">02</b> Compare Senior and Junior exposure.
+            </li>
+            <li>
+              <b aria-hidden="true">03</b> Prepare your wallet, then review your
+              request.
+            </li>
+          </ol>
         </div>
       </details>
     </div>

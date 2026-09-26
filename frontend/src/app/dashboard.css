@@ -579,13 +579,6 @@
 .dashboard-shell .catalog-product {
   padding: 20px;
 }
-.dashboard-shell .catalog-guide {
-  padding: 14px 0;
-}
-.catalog-guide h2 {
-  font-size: 20px;
-  margin: 18px 0 12px;
-}
 .account-workspace {
   display: flex;
   flex-direction: column;
@@ -1503,6 +1496,9 @@
   }
 }
 @media (max-width: 640px) {
+  html:has(.dashboard-shell) {
+    scroll-padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
   .dashboard-shell:has(.trading-desk) {
     padding-bottom: calc(65px + env(safe-area-inset-bottom));
   }

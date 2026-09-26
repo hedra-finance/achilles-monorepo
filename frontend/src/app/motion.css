@@ -447,11 +447,13 @@ html[data-page-visible='false'] *::after {
 @supports (interpolate-size: allow-keywords) and
   selector(details::details-content) {
   .liquidity-panel,
-  .investment-access {
+  .investment-access,
+  .catalog-guide {
     interpolate-size: allow-keywords;
   }
   .liquidity-panel::details-content,
-  .investment-access::details-content {
+  .investment-access::details-content,
+  .catalog-guide::details-content {
     block-size: 0;
     opacity: 0;
     overflow: clip;
@@ -461,7 +463,8 @@ html[data-page-visible='false'] *::after {
       content-visibility 280ms allow-discrete;
   }
   .liquidity-panel[open]::details-content,
-  .investment-access[open]::details-content {
+  .investment-access[open]::details-content,
+  .catalog-guide[open]::details-content {
     block-size: auto;
     opacity: 1;
   }
