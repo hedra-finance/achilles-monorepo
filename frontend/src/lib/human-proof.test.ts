@@ -28,6 +28,7 @@ const makeProof = () => ({
 })
 const makeReply = () => ({
   success: true,
+  protocol_version: '4.0',
   action: policy.action,
   environment: 'production',
   results: [{ identifier: 'proof_of_human', success: true, nullifier: '0x99' }]
@@ -95,6 +96,8 @@ test('reply must confirm the expected action, environment and exact nullifier', 
     { action: 'another-action' },
     { environment: 'staging' },
     { action: undefined },
+    { protocol_version: '3.0' },
+    { protocol_version: undefined },
     { environment: undefined },
     {
       results: [

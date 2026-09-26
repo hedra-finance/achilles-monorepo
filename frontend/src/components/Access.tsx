@@ -271,7 +271,8 @@ export function Access({
                   </p>
                 )}
                 <p className="access-alternative">
-                  No supported World ID credential, or prefer not to verify?
+                  Cancelled, no World App or supported v4 credential, or
+                  verification unavailable?
                 </p>
                 <button
                   className="text-link"
@@ -337,13 +338,27 @@ export function Access({
                 'Access'
               )
             }
+            fail={() =>
+              setMsg((previous) =>
+                previous?.ok === false
+                  ? previous
+                  : {
+                      ok: false,
+                      text: 'World ID verification could not complete. Retry with a supported v4 Proof of Human credential, or explore Junior with an invite.'
+                    }
+              )
+            }
             close={(completed) => {
               setWorldContext(null)
               if (!completed)
-                setMsg({
-                  ok: false,
-                  text: 'Verification closed. Senior stays locked until access is confirmed. Retry or explore Junior.'
-                })
+                setMsg((previous) =>
+                  previous?.ok === false
+                    ? previous
+                    : {
+                        ok: false,
+                        text: 'Verification closed. Senior stays locked until access is confirmed. Retry or explore Junior.'
+                      }
+                )
             }}
           />
         )}

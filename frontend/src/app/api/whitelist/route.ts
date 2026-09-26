@@ -134,16 +134,20 @@ async function verifyHuman(
       same:
         wallet.toLowerCase() === address.toLowerCase() &&
         registered === nullifier,
-      occupied: BigInt(wallet) !== 0n || registered !== 0n
+      conflict:
+        BigInt(wallet) !== 0n
+          ? 'This person already registered Senior access with another wallet. Use the original wallet, or explore Junior.'
+          : registered !== 0n
+            ? 'This wallet already holds another human’s Senior registration. Use the matching World ID, or explore Junior.'
+            : null
     }
   }
   const existing = await binding()
   // A previous registry write may have succeeded before the Hub grant failed. Resume that exact binding.
   if (existing.same) return null
-  if (existing.occupied)
+  if (existing.conflict)
     return {
-      message:
-        'This human or wallet is already linked to another Senior access registration.',
+      message: existing.conflict,
       status: 409
     }
   try {
@@ -157,10 +161,9 @@ async function verifyHuman(
     // The contract, not this read-before-write, atomically enforces uniqueness across concurrent requests.
     const after = await binding()
     if (after.same) return null
-    if (after.occupied)
+    if (after.conflict)
       return {
-        message:
-          'This human or wallet is already registered for Senior access.',
+        message: after.conflict,
         status: 409
       }
     throw new Error('Human registration could not be confirmed')

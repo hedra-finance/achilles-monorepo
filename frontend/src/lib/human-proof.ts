@@ -67,6 +67,7 @@ export function verifiedHumanNullifier(
     !isRecord(proof) ||
     !isRecord(reply) ||
     reply.success !== true ||
+    reply.protocol_version !== '4.0' ||
     reply.environment !== policy.environment ||
     reply.action !== policy.action ||
     !Array.isArray(reply.results)

@@ -46,6 +46,22 @@ const EVENTS: Record<
     category: 'Liquidity',
     icon: 'coins'
   },
+  Swap: { label: 'Pool swap', category: 'Liquidity', icon: 'coins' },
+  Mint: {
+    label: 'Pool liquidity minted',
+    category: 'Liquidity',
+    icon: 'coins'
+  },
+  Burn: {
+    label: 'Pool liquidity burned',
+    category: 'Liquidity',
+    icon: 'coins'
+  },
+  Sync: {
+    label: 'Pool reserves updated',
+    category: 'Liquidity',
+    icon: 'coins'
+  },
   Claimed: {
     label: 'Human verification registered',
     category: 'Access',
@@ -56,9 +72,16 @@ const EVENTS: Record<
 export function PoolActivity() {
   const [category, setCategory] = useState<Category>('All')
   const query = useQuery({
-    queryKey: ['multibaas-events', PRODUCT.idHex, PRODUCT.sepolia.pool],
+    queryKey: [
+      'multibaas-events',
+      PRODUCT.idHex,
+      PRODUCT.sepolia.pool,
+      category
+    ],
     queryFn: async (): Promise<Event[]> => {
-      const response = await fetch('/api/multibaas?limit=25')
+      const response = await fetch(
+        `/api/multibaas?limit=25&category=${category}`
+      )
       const data = await response.json().catch(() => null)
       if (!response.ok || !Array.isArray(data?.events))
         throw new Error(
@@ -69,11 +92,7 @@ export function PoolActivity() {
     refetchInterval: 30_000,
     retry: 0
   })
-  const events = (query.data ?? []).filter(
-    (event) =>
-      category === 'All' ||
-      EVENTS[event.name.split('(')[0]]?.category === category
-  )
+  const events = query.data ?? []
   return (
     <section
       id="pool-activity"
@@ -190,17 +209,20 @@ export function PoolActivity() {
             <Icon name="activity" size={24} />
             <strong>
               No {category === 'All' ? 'indexed' : category.toLowerCase()}{' '}
-              events in this window.
+              events for this deployment in this window.
             </strong>
             <p>
-              The latest 25 indexed events appear here as activity is recorded.
+              Up to 25 recent records for the selected category appear here.
+              This is not a complete history.
             </p>
           </div>
         ))
       )}
       <footer className="indexed-footer">
         <span>Indexed by Curvegrid MultiBaas</span>
-        <span>Indexing may lag on-chain confirmation.</span>
+        <span>
+          Current deployment only. Indexing may lag on-chain confirmation.
+        </span>
       </footer>
     </section>
   )

@@ -17,11 +17,13 @@ export default function WorldVerification({
   context,
   address,
   verify,
+  fail,
   close
 }: {
   context: WorldContext
   address: string
   verify: (proof: unknown) => Promise<boolean>
+  fail: () => void
   close: (completed: boolean) => void
 }) {
   const completed = useRef(false)
@@ -43,6 +45,7 @@ export default function WorldVerification({
           throw new Error('Senior access could not be confirmed. Please retry.')
         completed.current = true
       }}
+      onError={() => fail()}
       onSuccess={() => close(true)}
     />
   )
