@@ -1,4 +1,8 @@
 'use client'
+import {
+  JUNIOR_TESTNET_OVERRIDE,
+  JUNIOR_TESTNET_LABEL
+} from '@/lib/junior-display'
 import { useState } from 'react'
 import { MotionLink as Link } from '@/components/MotionLink'
 import { PRODUCT } from '@/lib/product'
@@ -92,7 +96,12 @@ export function ProductCatalog() {
               <span>Recorded NAV</span>
               <span>Senior target APR</span>
               <span>
-                Junior {s.junior.annualized ? 'realized APR' : 'period return'}
+                Junior{' '}
+                {JUNIOR_TESTNET_OVERRIDE
+                  ? JUNIOR_TESTNET_LABEL
+                  : s.junior.annualized
+                    ? 'realized APR'
+                    : 'period return'}
               </span>
               <span>Deposit network</span>
             </div>
@@ -140,7 +149,12 @@ export function ProductCatalog() {
             </div>
             <div className="catalog-number junior">
               <small>
-                Junior {s.junior.annualized ? 'realized APR' : 'period return'}
+                Junior{' '}
+                {JUNIOR_TESTNET_OVERRIDE
+                  ? JUNIOR_TESTNET_LABEL
+                  : s.junior.annualized
+                    ? 'realized APR'
+                    : 'period return'}
               </small>
               <strong>
                 <LoadingValue loading={s.loading}>

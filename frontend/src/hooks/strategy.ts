@@ -1,5 +1,6 @@
 'use client'
 import { useOverview, useProduct } from './data'
+import { juniorDisplayYield } from '@/lib/junior-display'
 import { PRODUCT } from '@/lib/product'
 import { hubConfigured } from '@/lib/chains'
 import { displayYieldPercent } from '@/lib/math'
@@ -27,7 +28,7 @@ export function useStrategySnapshot() {
     last: overview.data?.last,
     decimals: p?.decimals ?? 6,
     seniorApr: p && sr >= 0 ? Number(p.tranches[sr].apr) / 1e16 : null,
-    junior,
+    junior: juniorDisplayYield(junior),
     seniorPrice: overview.data?.last?.sharePrices[sr],
     issue:
       !hubConfigured ||

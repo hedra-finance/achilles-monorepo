@@ -1,4 +1,8 @@
 'use client'
+import {
+  JUNIOR_TESTNET_OVERRIDE,
+  JUNIOR_TESTNET_LABEL
+} from '@/lib/junior-display'
 import { useState } from 'react'
 import { MotionLink as Link } from '@/components/MotionLink'
 import Image from 'next/image'
@@ -225,9 +229,11 @@ export function Landing() {
                 <span>
                   {layer === 'Senior'
                     ? 'Target APR'
-                    : s.junior.annualized
-                      ? 'Realized APR'
-                      : 'Period return'}
+                    : JUNIOR_TESTNET_OVERRIDE
+                      ? JUNIOR_TESTNET_LABEL
+                      : s.junior.annualized
+                        ? 'Realized APR'
+                        : 'Period return'}
                 </span>
               </div>
               <span className="landing-layer-action">

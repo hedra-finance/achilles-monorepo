@@ -1,4 +1,10 @@
 'use client'
+import { JuniorTestnetChart } from './JuniorTestnetChart'
+import {
+  JUNIOR_TESTNET_OVERRIDE,
+  JUNIOR_TESTNET_LABEL,
+  juniorDisplayYield
+} from '@/lib/junior-display'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useWalletAccount } from '@/hooks/wallet'
 import { useProduct, useOverview, useAccountData } from '@/hooks/data'
@@ -86,8 +92,8 @@ export function ProductDetail({
         price: h.sharePrices[i] == null ? null : Number(h.sharePrices[i]) / 1e18
       }))
     )
-  const jrY = yieldFor(jr),
-    selectedYield = yieldFor(index)
+  const jrY = juniorDisplayYield(yieldFor(jr)),
+    selectedYield = selected === 'Junior' ? jrY : yieldFor(index)
   const last = ov.data?.last ?? null
   const sharePrice = last?.sharePrices[index]
   const position = acct.data?.positions.find((pos) => pos.index === index)
@@ -272,7 +278,11 @@ export function ProductDetail({
               <section id="performance" className="desk-performance">
                 <div className="desk-heading">
                   <div>
-                    <span className="eyebrow">RECORDED SHARE PRICES</span>
+                    <span className="eyebrow">
+                      {selected === 'Junior' && JUNIOR_TESTNET_OVERRIDE
+                        ? 'TESTNET APR'
+                        : 'RECORDED SHARE PRICES'}
+                    </span>
                     <h2>{selected} performance</h2>
                   </div>
                   <span className={`pill ${selected.toLowerCase()}`}>
@@ -281,21 +291,28 @@ export function ProductDetail({
                 </div>
                 <p className="performance-return">
                   <strong>{pct(selectedYield.percent)}</strong>
-                  {selectedYield.annualized
-                    ? ' realized APR'
-                    : ' period return'}{' '}
+                  {selected === 'Junior' && JUNIOR_TESTNET_OVERRIDE
+                    ? ` ${JUNIOR_TESTNET_LABEL}`
+                    : selectedYield.annualized
+                      ? ' realized APR'
+                      : ' period return'}{' '}
                   <HelpTip label="About recorded performance">
-                    Historical share-price changes, not a forecast. Short
-                    histories are not annualized.
+                    {selected === 'Junior' && JUNIOR_TESTNET_OVERRIDE
+                      ? 'Illustrative testnet rate, not a recorded return or forecast.'
+                      : 'Historical share-price changes, not a forecast. Short histories are not annualized.'}
                   </HelpTip>
                 </p>
-                <NavChart
-                  loading={loading}
-                  history={hist}
-                  sr={sr}
-                  jr={jr}
-                  selected={selected}
-                />
+                {selected === 'Junior' && JUNIOR_TESTNET_OVERRIDE ? (
+                  <JuniorTestnetChart />
+                ) : (
+                  <NavChart
+                    loading={loading}
+                    history={hist}
+                    sr={sr}
+                    jr={jr}
+                    selected={selected}
+                  />
+                )}
               </section>
             )}
             {view === 'settlements' && (
@@ -384,9 +401,11 @@ export function ProductDetail({
                 <small>
                   {layer === 'Senior'
                     ? 'Target APR · priority'
-                    : jrY.annualized
-                      ? 'Realized APR · first loss'
-                      : 'Period return · first loss'}
+                    : JUNIOR_TESTNET_OVERRIDE
+                      ? `${JUNIOR_TESTNET_LABEL} · first loss`
+                      : jrY.annualized
+                        ? 'Realized APR · first loss'
+                        : 'Period return · first loss'}
                 </small>
               </button>
             ))}
