@@ -13,6 +13,12 @@ import {
 } from '@/hooks/data'
 import { chainLabel, txUrl } from '@/lib/chains'
 import { fmt, short } from '@/lib/math'
+import { PRODUCT } from '@/lib/product'
+import {
+  hasPosition,
+  positionActions,
+  ticketHref
+} from '@/lib/position-actions'
 
 export default function PortfolioPage() {
   return (
@@ -77,15 +83,20 @@ function PortfolioContent() {
     )
   const last = ov.data?.last
   const dec = p.decimals
-  const rows = p.tranches.map((t) => {
-    const pos = acct.data!.positions.find((x) => x.index === t.index)!
-    const price = last?.sharePrices[t.index]
-    return {
-      t,
-      pos,
-      value: price != null ? (pos.shares * price) / 10n ** 18n : null
-    }
-  })
+  const rows = p.tranches
+    .map((t) => {
+      const pos = acct.data!.positions.find((x) => x.index === t.index)!
+      const price = last?.sharePrices[t.index]
+      return {
+        t,
+        pos,
+        value: price != null ? (pos.shares * price) / 10n ** 18n : null
+      }
+    })
+    .filter(
+      ({ t, pos }) =>
+        PRODUCT.entryChains.includes(t.chainId) || hasPosition(pos)
+    )
   const total = rows.every((r) => r.value !== null)
     ? rows.reduce((a, r) => a + (r.value ?? 0n), 0n)
     : null
@@ -119,11 +130,60 @@ function PortfolioContent() {
         </div>
         <div className="card">
           <h3>Access</h3>
-          <span className={`pill ${acct.data.eligible ? 'ok' : 'bad'}`}>
-            {acct.data.eligible ? 'Whitelisted' : 'Not whitelisted'}
-          </span>
+          {p.tranches
+            .filter((t) => PRODUCT.entryChains.includes(t.chainId))
+            .map((t) => (
+              <div className="portfolio-access-row" key={t.index}>
+                <span>{t.type}</span>
+                <Link className="text-link" href={ticketHref(t.type)}>
+                  {acct.data!.eligibility[t.index]
+                    ? 'Deposit access granted'
+                    : 'Check access →'}
+                </Link>
+              </div>
+            ))}
+          <p className="sub">
+            Access is checked per tranche. Claims are listed separately and
+            remain subject to the vault’s transfer rules.
+          </p>
         </div>
       </div>
+      <section
+        className="card portfolio-next"
+        aria-labelledby="portfolio-next-title"
+      >
+        <h3 id="portfolio-next-title">Your next action</h3>
+        <p className="sub">
+          Claims require a separate wallet transaction after settlement. Pending
+          requests continue independently.
+        </p>
+        <div className="grid grid-2">
+          {rows
+            .filter(({ t }) => PRODUCT.entryChains.includes(t.chainId))
+            .map(({ t, pos }) => (
+              <div className="position-action-card" key={t.index}>
+                <span className={`pill ${t.type.toLowerCase()}`}>{t.type}</span>
+                <div className="position-actions">
+                  {positionActions(pos, acct.data!.eligibility[t.index]).map(
+                    (action) => (
+                      <Link
+                        key={action.label}
+                        className={`btn ${action.kind === 'claim' ? 'primary' : 'secondary'}`}
+                        href={
+                          action.kind === 'track'
+                            ? '/activity'
+                            : ticketHref(t.type, action.mode)
+                        }
+                      >
+                        {action.label}
+                      </Link>
+                    )
+                  )}
+                </div>
+              </div>
+            ))}
+        </div>
+      </section>
       <div className="card" style={{ marginBottom: 16 }}>
         <h3>Positions</h3>
         <div className="table-scroll">
@@ -146,7 +206,12 @@ function PortfolioContent() {
                       {t.type}
                     </span>
                   </td>
-                  <td>{chainLabel(t.chainId)}</td>
+                  <td>
+                    {chainLabel(t.chainId)}
+                    {!PRODUCT.entryChains.includes(t.chainId) && (
+                      <small className="sub"> · Strategy vault</small>
+                    )}
+                  </td>
                   <td className="num">{fmt(pos.shares, dec, 4)}</td>
                   <td className="num">{fmt(value, dec)}</td>
                   <td className="sub">
@@ -180,12 +245,10 @@ function PortfolioContent() {
           </table>
         </div>
         <p className="sub" style={{ marginBottom: 0 }}>
-          Ready to claim?{' '}
-          <Link className="text-link" href="/products/stocks-stable#invest">
-            Open the investment panel
-          </Link>{' '}
-          and select your tranche. Claim amounts above describe the original
-          request; the settlement determines your payout.
+          Claimable amounts describe the original request, not the final payout.
+          Settlement determines the shares or USDC you receive. Use the actions
+          above to open the matching tranche; nothing is submitted until you
+          confirm in your wallet.
         </p>
       </div>
       <div className="card">

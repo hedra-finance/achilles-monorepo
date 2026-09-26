@@ -17,11 +17,14 @@ import { fmt, pct, displayYieldPercent } from '@/lib/math'
 import { hubConfigured } from '@/lib/chains'
 import { LoadingValue } from './Skeleton'
 import { PRODUCT } from '@/lib/product'
+import type { TicketMode } from '@/lib/position-actions'
 
 export function ProductDetail({
-  initialLayer = 'Senior'
+  initialLayer = 'Senior',
+  initialMode = 'invest'
 }: {
   initialLayer?: RiskLayer
+  initialMode?: TicketMode
 }) {
   const product = useProduct()
   const ov = useOverview()
@@ -400,6 +403,7 @@ export function ProductDetail({
             <span>SEPOLIA</span>
           </div>
           <Ticket
+            initialMode={initialMode}
             loading={loading}
             product={p}
             last={last}

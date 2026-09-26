@@ -35,6 +35,10 @@ const QUESTIONS = [
     'Connect a wallet on Sepolia. Senior access uses World ID; Junior access uses a team invite code. Fund your wallet with test ETH and the test USDC faucet. The product page checks each prerequisite before submission.'
   ],
   [
+    'Why does Senior use World ID?',
+    'Senior registration links one verified human to one wallet, reducing duplicate registrations across wallets. The proof does not establish legal identity, financial suitability, or a deposit cap. Junior offers a separate invite-based route with first-loss exposure; it is a different risk choice.'
+  ],
+  [
     'Can I withdraw immediately?',
     'Redemptions are asynchronous. Request a redemption, wait for settlement, then claim the available USDC. Deposits follow the same request, settlement and claim cycle.'
   ]
@@ -154,8 +158,8 @@ export function Landing() {
             </div>
             <h3>Stablecoin liquidity</h3>
             <p>
-              A Uniswap V2 USDC / USDT pair on Sepolia. Trading fees contribute to the strategy
-              alongside stock exposure.
+              A Uniswap V2 USDC / USDT pair on Sepolia. Trading fees contribute
+              to the strategy alongside stock exposure.
             </p>
             <div
               className="stablecoin-art"

@@ -1,7 +1,7 @@
 # Achilles
 
-Cross-chain tranche vaults settled from a single hub, with capital split across
-independent yield sources on different networks.
+Achilles helps users understand and choose risk across a cross-chain portfolio,
+with Senior/Junior tranches, observable pricing, and asynchronous settlement and claims.
 
 - A hub chain holds no capital. It only records requests, prices the product each
   settlement cycle, and decides how funds move.
@@ -43,3 +43,69 @@ pnpm --filter achilles-web dev       # dapp on :3000
 The dapp needs `web/.env.local` (copy `web/.env.example`): public RPC URLs, a
 WalletConnect project id, and — for server routes that grant access and supply
 testnet funds — an operator key.
+
+The landing page is `/`, the product directory is `/products`, the current
+strategy is `/products/stocks-stable`, and connected-wallet views are
+`/portfolio` and `/activity`. Never commit local environment files or keys.
+Server credentials belong only in server environment variables, never in
+`NEXT_PUBLIC_*` variables. Public RPC and wallet configuration are visible to
+the browser even when their source environment file is Git-ignored.
+
+## Test and review
+
+```sh
+pnpm --filter achilles-web test
+pnpm --filter achilles-web typecheck
+pnpm --filter achilles-web build
+```
+
+The frontend tests cover financial display boundaries, chart gaps, World proof
+validation, loss allocation, and concurrent claim/pending states. Passing these
+tests does not prove a live wallet has completed the entire deposit/redemption cycle.
+
+For a live walkthrough: inspect holdings and pool/settlement price provenance,
+choose a tranche, obtain access, fund a Sepolia wallet, review and submit a
+deposit request, track settlement, then claim shares. A redemption requires its
+own request, settlement, and USDC claim. Record actual transaction receipts for
+both journeys; do not portray a pending request as completed funds delivery.
+
+## Integrations
+
+| Integration | Implementation and observable behavior |
+| --- | --- |
+| Uniswap V3 | [StockBasketSource](contracts/contracts/sources/StockBasketSource.sol#L272): basket rebalancing uses `exactInputSingle`; current pool quotes and recorded valuations are shown separately in [Allocation](web/src/components/Allocation.tsx). |
+| Uniswap V2 | [StablePoolSource](contracts/contracts/sources/StablePoolSource.sol#L92): swaps, adds/removes liquidity, and values LP shares. The UI links the Sepolia pool and strategy adapter. |
+| World IDKit | [WorldVerification](web/src/components/WorldVerification.tsx), [server verification](web/src/app/api/whitelist/route.ts), and [HumanRegistry](contracts/contracts/spoke/HumanRegistry.sol): server-verified Proof of Human is bound to the wallet and action before Senior permission is granted. Junior uses a separate invite policy. |
+| Curvegrid MultiBaas | [Server proxy](web/src/app/api/multibaas/route.ts) uses a reader credential to retrieve indexed events. [PoolActivity](web/src/components/PoolActivity.tsx) interprets known events; balances and claim availability come from direct chain reads. |
+
+See [integration feedback](FEEDBACK.md) for concrete findings and remaining live
+verification. [Deployment configuration](contracts/deployments/eg_deploy.json)
+identifies the actual networks, assets, and contract addresses. The Sepolia V2
+factory/router match the [official deployment list](https://developers.uniswap.org/docs/protocols/v2/deployments).
+Robinhood testnet V3 provenance must be evaluated separately; this is not a claim
+that it is an official mainnet deployment.
+
+## Current boundaries
+
+- This is a testnet product. Basket tokens and pool quotes do not establish
+  ownership of legal company shares or live exchange pricing.
+- Junior absorbs losses first; Senior can also lose capital. The interactive
+  $100 loss scenario is an illustration, not the live tranche capitalization.
+- World registration restricts duplicate human registrations, not investment
+  amounts. It is not KYC or a financial suitability check.
+- The settlement hub records and coordinates; it does not custody portfolio
+  capital. No hub explorer is exposed. Confidentiality is not an end-to-end
+  privacy guarantee; public-chain movements remain visible.
+- Keeper availability, cross-chain delivery, funding, permissions, and actual
+  human verification must be tested against the submitted deployment.
+
+## Team and development
+
+Team Achilles: 샴쇼드, 김상욱 ([woogie96](https://github.com/woogie96)),
+and 김기황 (frontend, design, and frontend API integration).
+Additional public profiles and final submission roles are maintained by the team.
+
+AI-assisted development includes frontend implementation, code review, tests,
+and documentation. This statement describes the frontend assistance reflected
+here; the team should describe its complete contribution and development history
+in the event submission.

@@ -16,6 +16,7 @@ import {
   short
 } from '@/lib/math'
 import { PRODUCT } from '@/lib/product'
+import { addressUrl } from '@/lib/chains'
 import { Icon } from './Icon'
 import { StockLogo } from './StockLogo'
 import { DistributionChart } from './DistributionChart'
@@ -528,7 +529,7 @@ export function Allocation({
           <span className="source-badge blue">◇</span>
           <span>
             <strong>USDC / USDT liquidity</strong>
-            <small>Ethereum Sepolia · stablecoin pool</small>
+            <small>Uniswap V2 · Ethereum Sepolia</small>
           </span>
           <span className="liquidity-value">
             {fmt(lp.data?.lpValue, 6)} <small>USDC</small>
@@ -554,6 +555,24 @@ export function Allocation({
               {fmt(lp.data?.totalAssets, 6)} <small>USDC</small>
             </strong>
           </div>
+        </div>
+        <div className="pool-evidence-links">
+          {[
+            ['View liquidity pool', PRODUCT.sepolia.pool],
+            ['View strategy adapter', PRODUCT.sepolia.lpAdapter]
+          ].map(([label, address]) => {
+            const href = addressUrl(PRODUCT.sepolia.chainId, address)
+            return href ? (
+              <a key={address} href={href} target="_blank" rel="noreferrer">
+                {label} <Icon name="external" size={12} />
+              </a>
+            ) : null
+          })}
+          <span>
+            {lp.dataUpdatedAt
+              ? `Pool snapshot ${new Date(lp.dataUpdatedAt).toLocaleTimeString()} · refreshes every 30s`
+              : 'Awaiting pool snapshot'}
+          </span>
         </div>
         <p className="market-disclosure">
           {lp.isError ? 'Pool refresh failed. ' : ''}Testnet pool with simulated
