@@ -61,7 +61,7 @@ contract RequestVault is Initializable, IRequestVault, IERC165 {
     function asset() external view returns (address) { return _asset; }
     function share() external view returns (address) { return _share; }
     function tranche() external view returns (uint8) { return _tranche; }
-    function totalAssets() public view returns (uint256) { return IVaultCoordinator(manager).trancheAssets(_tranche); }
+    function totalAssets() public view returns (uint256) { return IVaultCoordinator(manager).trancheAssets(address(this)); }
 
     /// @notice NAV/supply based estimate (4626 view). Not the settlement price, which is fixed at settle time.
     function convertToShares(uint256 assets) external view returns (uint256) {
@@ -77,16 +77,16 @@ contract RequestVault is Initializable, IRequestVault, IERC165 {
 
     // ── 4626 max*: async vault, so the controller's claimable balance ──
     function maxDeposit(address controller) external view returns (uint256) {
-        return IVaultCoordinator(manager).claimableDepositAssets(_tranche, controller);
+        return IVaultCoordinator(manager).claimableDepositAssets(address(this), controller);
     }
     function maxMint(address controller) external view returns (uint256) {
-        return IVaultCoordinator(manager).claimableDepositShares(_tranche, controller);
+        return IVaultCoordinator(manager).claimableDepositShares(address(this), controller);
     }
     function maxWithdraw(address controller) external view returns (uint256) {
-        return IVaultCoordinator(manager).claimableRedeemAssets(_tranche, controller);
+        return IVaultCoordinator(manager).claimableRedeemAssets(address(this), controller);
     }
     function maxRedeem(address controller) external view returns (uint256) {
-        return IVaultCoordinator(manager).claimableRedeemShares(_tranche, controller);
+        return IVaultCoordinator(manager).claimableRedeemShares(address(this), controller);
     }
 
     // ── 4626 preview*: ERC-7540 requires async vaults to revert ──
@@ -128,7 +128,7 @@ contract RequestVault is Initializable, IRequestVault, IERC165 {
 
     function deposit(uint256 assets, address receiver, address controller) public returns (uint256 shares) {
         _validateController(controller);
-        if (assets != IVaultCoordinator(manager).claimableDepositAssets(_tranche, controller)) revert ClaimMismatch();
+        if (assets != IVaultCoordinator(manager).claimableDepositAssets(address(this), controller)) revert ClaimMismatch();
         shares = IVaultCoordinator(manager).claimDeposit(controller, receiver);
         emit Deposit(controller, receiver, assets, shares);
     }
@@ -139,7 +139,7 @@ contract RequestVault is Initializable, IRequestVault, IERC165 {
 
     function mint(uint256 shares, address receiver, address controller) public returns (uint256 assets) {
         _validateController(controller);
-        assets = IVaultCoordinator(manager).claimableDepositAssets(_tranche, controller);
+        assets = IVaultCoordinator(manager).claimableDepositAssets(address(this), controller);
         uint256 claimed = IVaultCoordinator(manager).claimDeposit(controller, receiver);
         if (shares != claimed) revert ClaimMismatch();
         emit Deposit(controller, receiver, assets, claimed);
@@ -150,12 +150,12 @@ contract RequestVault is Initializable, IRequestVault, IERC165 {
     }
 
     function pendingDepositRequest(uint256, address controller) external view returns (uint256 assets) {
-        return IVaultCoordinator(manager).pendingDepositRequest(_tranche, controller);
+        return IVaultCoordinator(manager).pendingDepositRequest(address(this), controller);
     }
 
     /// @notice ERC-7540: assets of the claimable deposit (the amount originally requested).
     function claimableDepositRequest(uint256, address controller) external view returns (uint256 assets) {
-        return IVaultCoordinator(manager).claimableDepositAssets(_tranche, controller);
+        return IVaultCoordinator(manager).claimableDepositAssets(address(this), controller);
     }
 
     // ── ERC-7540 redeem ──
@@ -172,26 +172,26 @@ contract RequestVault is Initializable, IRequestVault, IERC165 {
 
     function redeem(uint256 shares, address receiver, address controller) public returns (uint256 assets) {
         _validateController(controller);
-        if (shares != IVaultCoordinator(manager).claimableRedeemShares(_tranche, controller)) revert ClaimMismatch();
+        if (shares != IVaultCoordinator(manager).claimableRedeemShares(address(this), controller)) revert ClaimMismatch();
         assets = IVaultCoordinator(manager).claimRedeem(controller, receiver);
         emit Withdraw(msg.sender, receiver, controller, assets, shares);
     }
 
     function withdraw(uint256 assets, address receiver, address controller) public returns (uint256 shares) {
         _validateController(controller);
-        shares = IVaultCoordinator(manager).claimableRedeemShares(_tranche, controller);
+        shares = IVaultCoordinator(manager).claimableRedeemShares(address(this), controller);
         uint256 paid = IVaultCoordinator(manager).claimRedeem(controller, receiver);
         if (assets != paid) revert ClaimMismatch();
         emit Withdraw(msg.sender, receiver, controller, paid, shares);
     }
 
     function pendingRedeemRequest(uint256, address controller) external view returns (uint256 shares) {
-        return IVaultCoordinator(manager).pendingRedeemRequest(_tranche, controller);
+        return IVaultCoordinator(manager).pendingRedeemRequest(address(this), controller);
     }
 
     /// @notice ERC-7540: shares of the claimable redeem (escrowed shares pending burn).
     function claimableRedeemRequest(uint256, address controller) external view returns (uint256 shares) {
-        return IVaultCoordinator(manager).claimableRedeemShares(_tranche, controller);
+        return IVaultCoordinator(manager).claimableRedeemShares(address(this), controller);
     }
 
     // ── request cancellation (only before settlement; direct-cancel style in the spirit of ERC-7887) ──

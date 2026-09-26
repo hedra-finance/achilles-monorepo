@@ -11,9 +11,12 @@ import { LedgerStorage } from "./LedgerStorage.sol";
 import { LedgerBase } from "./LedgerBase.sol";
 
 /// @dev Net cash of the hub coordinator — the same two values a spoke reports in its NAV response.
+///      The pallet registers the chain's router, and the router names the coordinator that holds the
+///      per-product ledger, so the address to ask is resolved through one hop.
 interface IHubManagerCash {
-    function poolCash() external view returns (uint256);
-    function owedAssets() external view returns (uint256);
+    function coordinator() external view returns (address);
+    function poolCash(uint64 productId) external view returns (uint256);
+    function owedAssets(uint64 productId) external view returns (uint256);
 }
 
 /// @title  SettlementFacet — collection and settlement pipeline (waterfall, batch approval, recording, finalize messages)
@@ -138,8 +141,9 @@ contract SettlementFacet is LedgerBase {
         uint64 hubId = _hubChainId();
         address hubMgr = _s().orchestrator.managerOf(_s().productId, hubId);
         if (hubMgr != address(0)) {
-            uint256 cash = IHubManagerCash(hubMgr).poolCash();
-            uint256 owed = IHubManagerCash(hubMgr).owedAssets();
+            address coord = IHubManagerCash(hubMgr).coordinator();
+            uint256 cash = IHubManagerCash(coord).poolCash(_s().productId);
+            uint256 owed = IHubManagerCash(coord).owedAssets(_s().productId);
             if (cash > owed) gross += cash - owed;
         }
         (uint64[] memory spokes, ) = _spokes();

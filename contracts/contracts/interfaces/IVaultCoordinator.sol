@@ -14,13 +14,13 @@ interface IVaultCoordinator {
     function cancelRedeem(address controller) external returns (uint256 shares);
 
     // Views
-    function pendingDepositRequest(uint8 tranche, address controller) external view returns (uint256 assets);
-    function claimableDepositShares(uint8 tranche, address controller) external view returns (uint256 shares);
-    function claimableDepositAssets(uint8 tranche, address controller) external view returns (uint256 assets);
-    function pendingRedeemRequest(uint8 tranche, address controller) external view returns (uint256 shares);
-    function claimableRedeemAssets(uint8 tranche, address controller) external view returns (uint256 assets);
-    function claimableRedeemShares(uint8 tranche, address controller) external view returns (uint256 shares);
-    function trancheAssets(uint8 tranche) external view returns (uint256);
+    function pendingDepositRequest(address vault, address controller) external view returns (uint256 assets);
+    function claimableDepositShares(address vault, address controller) external view returns (uint256 shares);
+    function claimableDepositAssets(address vault, address controller) external view returns (uint256 assets);
+    function pendingRedeemRequest(address vault, address controller) external view returns (uint256 shares);
+    function claimableRedeemAssets(address vault, address controller) external view returns (uint256 assets);
+    function claimableRedeemShares(address vault, address controller) external view returns (uint256 shares);
+    function trancheAssets(address vault) external view returns (uint256);
     /// @notice ERC-7575 reverse lookup — entry vault for (share, asset); 0 if unregistered or asset mismatch.
     function vaultFor(address share, address asset) external view returns (address);
 }

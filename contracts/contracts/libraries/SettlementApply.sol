@@ -18,18 +18,18 @@ library SettlementApply {
     /// @dev Target of adminClearRequest — hosted here to avoid one more library for a single call site.
     function clearRequest(
         mapping(bytes32 => Req) storage reqOf,
-        mapping(uint8 => mapping(address => bytes32[])) storage userDepReqs,
-        mapping(uint8 => mapping(address => bytes32[])) storage userRedReqs,
-        mapping(uint8 => address) storage vaultOf,
+        mapping(address => mapping(address => bytes32[])) storage userDepReqs,
+        mapping(address => mapping(address => bytes32[])) storage userRedReqs,
+        address vault,
         bytes32 requestId,
         uint64 localChainId
     ) public {
         Req storage r = reqOf[requestId];
-        bytes32[] storage list = r.kind == 1 ? userDepReqs[r.tranche][r.controller] : userRedReqs[r.tranche][r.controller];
+        bytes32[] storage list = r.kind == 1 ? userDepReqs[vault][r.controller] : userRedReqs[vault][r.controller];
         for (uint256 i = 0; i < list.length; i++) {
             if (list[i] == requestId) { list[i] = list[list.length - 1]; list.pop(); break; }
         }
-        emit RequestCleared(requestId, localChainId, vaultOf[r.tranche], r.controller, r.kind, r.inAmt);
+        emit RequestCleared(requestId, localChainId, vault, r.controller, r.kind, r.inAmt);
         delete reqOf[requestId];
     }
 
