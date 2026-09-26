@@ -40,12 +40,20 @@ contract StablePoolSource is Initializable, IYieldSource {
     uint16 public slippageBps;              // swap minOut and LP removal margin; must exceed the 0.3% V2 fee
     string public displayName;
     uint256 public constant BPS = 10_000;
+    /// @dev Used when entryBandBps was never set, so an upgraded proxy is not stuck refusing every entry.
+    uint16 internal constant DEFAULT_ENTRY_BAND_BPS = 30;
     uint16 public maxDeviationBps;          // how far off 1:1 the pool may sit before we refuse to swap
+    uint16 public entryBandBps;             // how close to 1:1 the pool must sit before we enter it
+    address public inventory;               // par-exchange desk: supplies the missing leg at 1:1 instead of the pool
 
     event Supplied(uint256 assets, uint256 swappedOut, uint256 lpMinted);
     event Withdrawn(uint256 assets, uint256 lpBurned, uint256 realized);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event ControllerSet(address controller);
+    event InventorySet(address inventory);
+    /// @notice A leg sourced from the desk at par instead of bought from the pool. Equal amounts both ways,
+    ///         so the position's value is unchanged — only its composition is.
+    event InventoryUsed(address indexed desk, address gave, address took, uint256 amount);
 
     error NotOwner();
     error NotController();
@@ -64,6 +72,7 @@ contract StablePoolSource is Initializable, IYieldSource {
         require(t0 == asset_ || t0 == counter_, "pair/tokens");
         slippageBps = 100; // 1%: 0.3% fee plus price impact headroom
         maxDeviationBps = 500; // 5%: normal trading drift passes, a manipulated pool does not
+        entryBandBps = DEFAULT_ENTRY_BAND_BPS; // 0.3%: entering costs about the swap fee and no more
         owner = msg.sender;
         emit OwnershipTransferred(address(0), msg.sender);
     }
@@ -76,6 +85,9 @@ contract StablePoolSource is Initializable, IYieldSource {
     function setController(address c) external onlyOwner { controller = c; emit ControllerSet(c); }
     function setSlippageBps(uint16 bps) external onlyOwner { require(bps > 30 && bps <= 2_000, "slippage out of range"); slippageBps = bps; }
     function setMaxDeviationBps(uint16 bps) external onlyOwner { require(bps > 0 && bps <= 2_000, "deviation out of range"); maxDeviationBps = bps; }
+    function setEntryBandBps(uint16 bps) external onlyOwner { require(bps > 0 && bps <= 500, "band out of range"); entryBandBps = bps; }
+    /// @notice Sets the par-exchange desk. Zero disables it and entries fall back to trading the pool.
+    function setInventory(address desk) external onlyOwner { inventory = desk; emit InventorySet(desk); }
 
     /// @notice Existing proxies were deployed before maxDeviationBps existed and read it as 0, which would
     ///         refuse every swap. Called once from the upgrade.
@@ -91,32 +103,72 @@ contract StablePoolSource is Initializable, IYieldSource {
 
     function allocate(uint256 assets, bytes32, address, address) external onlyController returns (uint256, Fulfillment) {
         assetToken.safeTransferFrom(msg.sender, address(this), assets);
-        uint256 half = assets / 2;
-        uint256 got = _swap(assetToken, counterToken, half);
-        uint256 lp = _addLiquidity(assets - half, got);
-        emit Supplied(assets, got, lp);
+        _enter();
         return (0, Fulfillment.SYNC);
+    }
+
+    /// @notice Puts idle asset into the pool, if the pool is close enough to 1:1 to be worth entering.
+    /// @dev    Permissionless on purpose: it can only act inside the band, so there is nothing to extract
+    ///         by choosing the moment, and it saves the keeper another key. Returns false when it declined,
+    ///         which is a normal outcome, not an error — the caller retries on the next cycle.
+    function enter() external returns (bool) { return _enter(); }
+
+    /// @dev Entering means selling half the deposit to the pool at whatever price the pool currently
+    ///      holds. A skewed pool therefore charges the depositor the skew on that half, which dwarfs the
+    ///      0.3% fee: a 2% skew cost one deposit 1.1% of principal. Idle asset is valued at par by
+    ///      totalAssets(), so waiting for the pool to come back is free, while entering is not.
+    function _enter() internal returns (bool) {
+        uint256 a = assetToken.balanceOf(address(this));
+        uint256 c = counterToken.balanceOf(address(this));
+        if (a == 0 && c == 0) return false;
+
+        // Trade only the imbalance, and fill it from the desk at par before buying any of it from the pool.
+        // Swapping a fixed half ignored counter token the contract already held, and selling asset we did
+        // not need to sell is what made a deposit cost the fee on half of itself — a cost that reached every
+        // holder through NAV rather than the depositor.
+        //
+        // The band gates the purchase, not the entry: trading into a skewed pool is what costs money, and a
+        // desk covering the whole gap never touches the pool, so holding the entry back would be a condition
+        // guarding nothing. Adding at a skewed ratio is not a loss either — the router takes less of one side
+        // and the rest stays idle, valued at par.
+        uint256 swapped;
+        if (a != c) {
+            bool sellAsset = a > c;
+            (IERC20 give, IERC20 take) = sellAsset ? (assetToken, counterToken) : (counterToken, assetToken);
+            uint256 gap = (sellAsset ? a - c : c - a) / 2;
+            uint256 atPar = _fromInventory(give, take, gap);
+            uint256 rest = gap - atPar;
+            if (rest > 0) {
+                // Nothing matched and the pool is too skewed to buy from: wait rather than pay the skew.
+                if (!_withinBand()) { if (atPar == 0) return false; }
+                else swapped = _swap(give, take, rest);
+            }
+            swapped += atPar;
+        }
+        uint256 lp = _addLiquidity(assetToken.balanceOf(address(this)), counterToken.balanceOf(address(this)));
+        emit Supplied(a, swapped, lp);
+        return true;
+    }
+
+    /// @dev Whether the pool sits close enough to 1:1 that buying the missing leg from it is acceptable.
+    function _withinBand() internal view returns (bool) {
+        (uint256 rA, uint256 rC) = _reserves(address(assetToken));
+        uint256 band = entryBandBps == 0 ? DEFAULT_ENTRY_BAND_BPS : entryBandBps;
+        uint256 diff = rA > rC ? rA - rC : rC - rA;
+        return diff * BPS <= (rA + rC) * band;
     }
 
     /// @dev Burns LP for the shortfall plus a slippage and peg-deviation margin, swaps the counter token back and sends exactly
     ///      `assets` to the controller. Reverts on shortfall rather than under-delivering; leftover asset stays
     ///      idle and joins the next allocation.
     function release(uint256 assets, bytes32, address, address) external onlyController returns (uint256, Fulfillment, uint256) {
-        uint256 idle = assetToken.balanceOf(address(this));
         uint256 lpBurned;
-        if (idle < assets) {
-            // Margin covers the swap back at the worst pool price the deviation guard still allows; any
-            // over-burn stays idle and joins the next allocation, whereas under-burning reverts the release.
-            uint256 need = (assets - idle) * (BPS + slippageBps + maxDeviationBps) / BPS;
-            uint256 lpBal = pair.balanceOf(address(this));
-            uint256 lpValue = _lpValue(lpBal);
-            lpBurned = need >= lpValue ? lpBal : need * lpBal / lpValue + 1;
-            // Router02 pulls the LP with transferFrom, so it needs an allowance on the pair token.
-            IERC20(address(pair)).forceApprove(address(router), lpBurned);
-            (uint256 outA, uint256 outC) = router.removeLiquidity(
-                address(assetToken), address(counterToken), lpBurned, 0, 0, address(this), block.timestamp);
-            outA; // verified via balance below
-            _swap(counterToken, assetToken, outC);
+        if (assetToken.balanceOf(address(this)) < assets) {
+            lpBurned = _burnFor(assets - assetToken.balanceOf(address(this)));
+            // Sell only what is still missing. Dumping the whole counter leg back would pay the fee on it
+            // and throw away the inventory that makes the next entry free; what stays is valued at par.
+            uint256 have = assetToken.balanceOf(address(this));
+            if (have < assets) _swap(counterToken, assetToken, _counterFor(assets - have));
         }
         require(assetToken.balanceOf(address(this)) >= assets, "insufficient realized");
         assetToken.safeTransfer(controller, assets);
@@ -183,12 +235,62 @@ contract StablePoolSource is Initializable, IYieldSource {
     }
 
     /// @dev Reserves oriented as (reserve of `tokenIn`, reserve of the other token).
+    /// @dev Exchanges up to `want` with the desk one for one. Both legs are pegged and share the asset's
+    ///      decimals, so equal raw amounts are equal value and totalAssets() does not move — the desk cannot
+    ///      be drained by choosing a moment, and this only runs inside the entry band anyway. Bounded by what
+    ///      the desk holds and has approved, so revoking the allowance turns it off without an upgrade.
+    function _fromInventory(IERC20 give, IERC20 take, uint256 want) internal returns (uint256 amt) {
+        address desk = inventory;
+        if (desk == address(0)) return 0;
+        uint256 avail = take.balanceOf(desk);
+        uint256 allowed = take.allowance(desk, address(this));
+        if (allowed < avail) avail = allowed;
+        amt = want < avail ? want : avail;
+        if (amt == 0) return 0;
+        take.safeTransferFrom(desk, address(this), amt);
+        give.safeTransfer(desk, amt);
+        emit InventoryUsed(desk, address(give), address(take), amt);
+    }
+
+    /// @dev Burns enough LP to cover `shortfall` of asset, plus the margin the swap back may cost at the
+    ///      worst price the deviation guard still allows. Over-burning leaves idle, which is valued at par;
+    ///      under-burning reverts the release, so the margin errs upward. Returns the LP burned.
+    function _burnFor(uint256 shortfall) internal returns (uint256 lpBurned) {
+        uint256 need = shortfall * (BPS + slippageBps + maxDeviationBps) / BPS;
+        uint256 lpBal = pair.balanceOf(address(this));
+        uint256 value = _lpValue(lpBal);
+        lpBurned = need >= value ? lpBal : need * lpBal / value + 1;
+        // Router02 pulls the LP with transferFrom, so it needs an allowance on the pair token.
+        IERC20(address(pair)).forceApprove(address(router), lpBurned);
+        router.removeLiquidity(address(assetToken), address(counterToken), lpBurned, 0, 0, address(this), block.timestamp);
+    }
+
+    /// @dev Counter token to sell to realise `want` of asset, with the slippage margin, capped at what we hold.
+    function _counterFor(uint256 want) internal view returns (uint256) {
+        uint256 need = want * (BPS + slippageBps) / BPS;
+        uint256 held = counterToken.balanceOf(address(this));
+        return need > held ? held : need;
+    }
+
     function _reserves(address tokenIn) internal view returns (uint256 rIn, uint256 rOut) {
         (uint112 r0, uint112 r1,) = pair.getReserves();
         return pair.token0() == tokenIn ? (uint256(r0), uint256(r1)) : (uint256(r1), uint256(r0));
     }
 
+    /// @dev Offers the pool its own ratio rather than whatever we happen to hold. The router always takes
+    ///      both sides in the current reserve ratio and reverts if the trimmed side falls below the minimum,
+    ///      so passing raw balances into a skewed pool fails on INSUFFICIENT_B_AMOUNT. Sizing to the ratio
+    ///      first means the minimums only have to cover movement inside this transaction; whatever does not
+    ///      fit stays idle and is valued at par.
     function _addLiquidity(uint256 a, uint256 c) internal returns (uint256 lp) {
+        if (a == 0 || c == 0) return 0;
+        (uint256 rA, uint256 rC) = _reserves(address(assetToken));
+        if (rA > 0 && rC > 0) {
+            uint256 cForA = a * rC / rA;
+            if (cForA <= c) c = cForA;
+            else a = c * rA / rC;
+            if (a == 0 || c == 0) return 0;
+        }
         assetToken.forceApprove(address(router), a);
         counterToken.forceApprove(address(router), c);
         (,, lp) = router.addLiquidity(
