@@ -13,6 +13,7 @@ type Event = {
   at: string | null
   txHash: string | null
   block: number | null
+  chainId: number
 }
 type Category = 'All' | 'Investments' | 'Liquidity' | 'Access'
 const EVENTS: Record<
@@ -134,7 +135,7 @@ export function PoolActivity() {
             {events.map((event, i) => {
               const meaning = EVENTS[event.name.split('(')[0]]
               const href = event.txHash
-                ? txUrl(PRODUCT.sepolia.chainId, event.txHash)
+                ? txUrl(event.chainId, event.txHash)
                 : null
               return (
                 <li key={`${event.txHash}-${event.name}-${i}`}>

@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { MotionLink as Link } from '@/components/MotionLink'
 import { usePathname } from 'next/navigation'
-import { useAccount } from 'wagmi'
+import { useWalletAccount } from '@/hooks/wallet'
 import { useAppKit } from '@reown/appkit/react'
 import { short } from '@/lib/math'
 import { MotionToggle } from './Motion'
@@ -26,7 +26,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname()
   const landing = path === '/'
   const [menuOpen, setMenuOpen] = useState(false)
-  const { address, isConnected } = useAccount()
+  const { address, isConnected } = useWalletAccount()
   const { open } = useAppKit()
   return (
     <div className={`app-shell ir-shell ${landing ? 'landing-shell' : ''}`}>

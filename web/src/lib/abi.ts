@@ -1,5 +1,9 @@
 import { parseAbi } from 'viem'
 
+export const shareRestrictionAbi = parseAbi([
+  'function detectTransferRestriction(address from, address to, uint256 value) view returns (uint8)'
+])
+
 export const PRECOMPILE = {
   trancheSystem: '0x0000000000000000000000000000000000000200',
   investments: '0x0000000000000000000000000000000000000201',

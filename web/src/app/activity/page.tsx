@@ -4,7 +4,7 @@ import { DataSkeleton } from '@/components/Skeleton'
 import { MotionLink as Link } from '@/components/MotionLink'
 import { WalletEmpty, QueryNotice, PageHeading } from '@/components/State'
 import { hubConfigured } from '@/lib/chains'
-import { useAccount } from 'wagmi'
+import { useWalletAccount } from '@/hooks/wallet'
 import { useProduct, useActivity } from '@/hooks/data'
 import { Steps } from '@/components/Steps'
 import { chainLabel } from '@/lib/chains'
@@ -26,7 +26,7 @@ export default function ActivityPage() {
   )
 }
 function ActivityContent() {
-  const { address } = useAccount()
+  const { address } = useWalletAccount()
   const product = useProduct()
   const p = product.data
   const act = useActivity(address)

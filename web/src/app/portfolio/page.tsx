@@ -4,7 +4,7 @@ import { DataSkeleton } from '@/components/Skeleton'
 import { MotionLink as Link } from '@/components/MotionLink'
 import { WalletEmpty, QueryNotice, PageHeading } from '@/components/State'
 import { hubConfigured } from '@/lib/chains'
-import { useAccount } from 'wagmi'
+import { useWalletAccount } from '@/hooks/wallet'
 import {
   useProduct,
   useOverview,
@@ -28,7 +28,7 @@ export default function PortfolioPage() {
   )
 }
 function PortfolioContent() {
-  const { address } = useAccount()
+  const { address } = useWalletAccount()
   const product = useProduct()
   const p = product.data
   const ov = useOverview()
@@ -85,17 +85,17 @@ function PortfolioContent() {
   const dec = p.decimals
   const rows = p.tranches
     .map((t) => {
-      const pos = acct.data!.positions.find((x) => x.index === t.index)!
+      const pos = acct.data!.positions.find((x) => x.index === t.index)
       const price = last?.sharePrices[t.index]
       return {
         t,
         pos,
-        value: price != null ? (pos.shares * price) / 10n ** 18n : null
+        value: pos && price != null ? (pos.shares * price) / 10n ** 18n : null
       }
     })
     .filter(
       ({ t, pos }) =>
-        PRODUCT.entryChains.includes(t.chainId) || hasPosition(pos)
+        !pos || PRODUCT.entryChains.includes(t.chainId) || hasPosition(pos)
     )
   const total = rows.every((r) => r.value !== null)
     ? rows.reduce((a, r) => a + (r.value ?? 0n), 0n)
@@ -103,6 +103,18 @@ function PortfolioContent() {
   return (
     <>
       {heading}
+      {Object.values(acct.data.issues).some(
+        (indices) => indices.length > 0
+      ) && (
+        <QueryNotice
+          title="Some account data is unavailable"
+          busy={acct.isFetching}
+          retry={() => void acct.refetch()}
+        >
+          Available balances and claims remain visible. Unavailable positions
+          are not counted as zero; retry to check the remaining networks.
+        </QueryNotice>
+      )}
       <div className="grid grid-3" style={{ marginBottom: 16 }}>
         <div className="card">
           <h3>Position value</h3>
@@ -117,14 +129,18 @@ function PortfolioContent() {
         </div>
         <div className="card">
           <h3>Wallet USDC</h3>
-          {Object.entries(acct.data.balances).map(([c, b]) => (
+          {[...new Set(p.tranches.map((t) => t.chainId))].map((c) => (
             <div
               key={c}
               className="row"
               style={{ justifyContent: 'space-between' }}
             >
               <span className="sub">{chainLabel(Number(c))}</span>
-              <span>{fmt(b, dec)}</span>
+              <span>
+                {acct.data!.balances[c] === undefined
+                  ? 'Unavailable'
+                  : fmt(acct.data!.balances[c]!, dec)}
+              </span>
             </div>
           ))}
         </div>
@@ -136,9 +152,11 @@ function PortfolioContent() {
               <div className="portfolio-access-row" key={t.index}>
                 <span>{t.type}</span>
                 <Link className="text-link" href={ticketHref(t.type)}>
-                  {acct.data!.eligibility[t.index]
-                    ? 'Deposit access granted'
-                    : 'Check access →'}
+                  {acct.data!.eligibility[t.index] === undefined
+                    ? 'Access unavailable'
+                    : acct.data!.eligibility[t.index]
+                      ? 'Deposit access granted'
+                      : 'Check access →'}
                 </Link>
               </div>
             ))}
@@ -164,19 +182,25 @@ function PortfolioContent() {
               <div className="position-action-card" key={t.index}>
                 <span className={`pill ${t.type.toLowerCase()}`}>{t.type}</span>
                 <div className="position-actions">
-                  {positionActions(pos, acct.data!.eligibility[t.index]).map(
-                    (action) => (
-                      <Link
-                        key={action.label}
-                        className={`btn ${action.kind === 'claim' ? 'primary' : 'secondary'}`}
-                        href={
-                          action.kind === 'track'
-                            ? '/activity'
-                            : ticketHref(t.type, action.mode)
-                        }
-                      >
-                        {action.label}
-                      </Link>
+                  {!pos ? (
+                    <span className="sub">
+                      Position unavailable. Retry account data above.
+                    </span>
+                  ) : (
+                    positionActions(pos, acct.data!.eligibility[t.index]).map(
+                      (action) => (
+                        <Link
+                          key={action.label}
+                          className={`btn ${action.kind === 'claim' ? 'primary' : 'secondary'}`}
+                          href={
+                            action.kind === 'track'
+                              ? '/activity'
+                              : ticketHref(t.type, action.mode)
+                          }
+                        >
+                          {action.label}
+                        </Link>
+                      )
                     )
                   )}
                 </div>
@@ -199,48 +223,60 @@ function PortfolioContent() {
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ t, pos, value }) => (
-                <tr key={t.index}>
-                  <td>
-                    <span className={`pill ${t.type.toLowerCase()}`}>
-                      {t.type}
-                    </span>
-                  </td>
-                  <td>
-                    {chainLabel(t.chainId)}
-                    {!PRODUCT.entryChains.includes(t.chainId) && (
-                      <small className="sub"> · Strategy vault</small>
-                    )}
-                  </td>
-                  <td className="num">{fmt(pos.shares, dec, 4)}</td>
-                  <td className="num">{fmt(value, dec)}</td>
-                  <td className="sub">
-                    {pos.deposit.pending > 0n && (
-                      <>
-                        Deposit {fmt(pos.deposit.pending, dec)} USDC
-                        <br />
-                      </>
-                    )}
-                    {pos.redeem.pending > 0n && (
-                      <>Redeem {fmt(pos.redeem.pending, dec)} shares</>
-                    )}
-                  </td>
-                  <td className="sub">
-                    {pos.deposit.claimable > 0n && (
-                      <>
-                        Deposit of {fmt(pos.deposit.claimable, dec)} USDC
-                        <br />
-                      </>
-                    )}
-                    {pos.redeem.claimable > 0n && (
-                      <>Redemption of {fmt(pos.redeem.claimable, dec)} shares</>
-                    )}
-                    {pos.deposit.claimable === 0n &&
-                      pos.redeem.claimable === 0n &&
-                      '—'}
-                  </td>
-                </tr>
-              ))}
+              {rows.map(({ t, pos, value }) =>
+                !pos ? (
+                  <tr key={t.index}>
+                    <td>{t.type}</td>
+                    <td>{chainLabel(t.chainId)}</td>
+                    <td colSpan={4} className="sub">
+                      Position unavailable — balance not assumed to be zero
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={t.index}>
+                    <td>
+                      <span className={`pill ${t.type.toLowerCase()}`}>
+                        {t.type}
+                      </span>
+                    </td>
+                    <td>
+                      {chainLabel(t.chainId)}
+                      {!PRODUCT.entryChains.includes(t.chainId) && (
+                        <small className="sub"> · Strategy vault</small>
+                      )}
+                    </td>
+                    <td className="num">{fmt(pos.shares, dec, 4)}</td>
+                    <td className="num">{fmt(value, dec)}</td>
+                    <td className="sub">
+                      {pos.deposit.pending > 0n && (
+                        <>
+                          Deposit {fmt(pos.deposit.pending, dec)} USDC
+                          <br />
+                        </>
+                      )}
+                      {pos.redeem.pending > 0n && (
+                        <>Redeem {fmt(pos.redeem.pending, dec)} shares</>
+                      )}
+                    </td>
+                    <td className="sub">
+                      {pos.deposit.claimable > 0n && (
+                        <>
+                          Deposit of {fmt(pos.deposit.claimable, dec)} USDC
+                          <br />
+                        </>
+                      )}
+                      {pos.redeem.claimable > 0n && (
+                        <>
+                          Redemption of {fmt(pos.redeem.claimable, dec)} shares
+                        </>
+                      )}
+                      {pos.deposit.claimable === 0n &&
+                        pos.redeem.claimable === 0n &&
+                        '—'}
+                    </td>
+                  </tr>
+                )
+              )}
             </tbody>
           </table>
         </div>
