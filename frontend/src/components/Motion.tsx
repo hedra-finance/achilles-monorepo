@@ -17,6 +17,18 @@ const MotionContext = createContext({
   toggle: () => {}
 })
 const media = '(prefers-reduced-motion: reduce)'
+
+/**
+ * A view transition cannot start while the document is hidden — the browser rejects it with
+ * InvalidStateError and the update it wrapped never commits. Track visibility and ask for no
+ * transition while hidden; only the props change, so nothing remounts when the tab comes back.
+ */
+const subscribeVisible = (change: () => void) => {
+  document.addEventListener('visibilitychange', change)
+  return () => document.removeEventListener('visibilitychange', change)
+}
+export const useDocumentVisible = () =>
+  useSyncExternalStore(subscribeVisible, () => !document.hidden, () => true)
 const subscribe = (change: () => void) => {
   const query = window.matchMedia(media)
   query.addEventListener('change', change)
@@ -117,14 +129,15 @@ export function PageMotion({ children }: { children: ReactNode }) {
       targets.forEach((target) => target.classList.remove('reveal-pending'))
     }
   }, [paused, reduced])
-  const classes = {
+  const visible = useDocumentVisible()
+  const classes = visible ? {
     'nav-forward': 'page-forward',
     'nav-back': 'page-back',
     default: 'page-fade'
-  }
+  } : 'none'
   return (
     <ViewTransition
-      name="achilles-page"
+      name={visible ? 'achilles-page' : 'none'}
       share={classes}
       enter={classes}
       exit={classes}

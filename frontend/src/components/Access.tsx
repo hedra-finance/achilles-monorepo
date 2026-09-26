@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { getAddress } from 'viem'
 import { worldIdConfigured } from '@/lib/worldid'
@@ -42,6 +42,26 @@ export function Access({
   const [code, setCode] = useState('')
   const [worldContext, setWorldContext] = useState<WorldContext | null>(null)
   const [accessPending, setAccessPending] = useState(false)
+
+  // The hub grant is sent, not waited on, so eligibility lands a few seconds after the request returns
+  // and the ordinary 15s account poll makes that feel like nothing happened. Poll quickly while a grant
+  // is outstanding, and stop as soon as it shows up — or after a minute, rather than forever.
+  useEffect(() => {
+    if (!accessPending) return
+    if (eligible === true) {
+      setAccessPending(false)
+      return
+    }
+    const startedAt = Date.now()
+    const id = setInterval(() => {
+      if (Date.now() - startedAt > 60_000) {
+        setAccessPending(false)
+        return
+      }
+      void qc.invalidateQueries({ queryKey: ['account'] })
+    }, 2_000)
+    return () => clearInterval(id)
+  }, [accessPending, eligible, qc])
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const funds = useQuery({
@@ -78,7 +98,13 @@ export function Access({
   const blocked = disabled || !!busy || !!worldContext
   async function post(path: string, body: object, label: string) {
     setBusy(label)
-    setMsg(null)
+    // Granting access writes to two chains and waits for the first receipt — tens of seconds of silence
+    // otherwise. Say what is happening instead of clearing the panel and leaving it blank.
+    setMsg(
+      label === 'Access'
+        ? { ok: true, text: 'Recording your verification on chain. This takes a moment.' }
+        : null
+    )
     try {
       const r = await fetch(path, {
         method: 'POST',
