@@ -15,9 +15,9 @@ must be completed for the submitted deployment.
   [StablePoolSource](contracts/contracts/sources/StablePoolSource.sol#L92),
   particularly `allocate`, `release`, `_swap`, and `_addLiquidity`.
 - The frontend reads token balances, pool quotes/reserves, LP ownership, and
-  finalized settlement records. See [reads](web/src/lib/reads.ts),
-  [Allocation](web/src/components/Allocation.tsx), and
-  [StockPricesChart](web/src/components/StockPricesChart.tsx).
+  finalized settlement records. See [reads](frontend/src/lib/reads.ts),
+  [Allocation](frontend/src/components/Allocation.tsx), and
+  [StockPricesChart](frontend/src/components/StockPricesChart.tsx).
 
 ### Friction and improvements
 

@@ -14,7 +14,7 @@ pnpm --filter achilles-web test
 pnpm --filter achilles-web build
 ```
 
-Copy `.env.example` to `.env.local` inside `web/` and configure the public Settlement Hub RPC and WalletConnect project ID. These values are intentionally left blank in the template. Restart the development server after changing public environment variables; deployment changes require a rebuild.
+Copy `.env.example` to `.env.local` inside `frontend/` and configure the public Settlement Hub RPC and WalletConnect project ID. These values are intentionally left blank in the template. Restart the development server after changing public environment variables; deployment changes require a rebuild.
 
 Without a Hub RPC, the strategy and configured target allocations remain visible, while live values display a dash and transaction submission is unavailable. Returns, chart history and balances are never generated as placeholders. WalletConnect QR connections require a project ID; browser-extension support depends on an installed compatible wallet.
 
@@ -50,6 +50,10 @@ An in-process queue and bounded contention retries reduce concurrent operations-
 ## Verification limits
 
 Unit tests cover return calculations, complete-loss prices, exact integer formatting and strict token amount parsing, and rejection of mismatched World actions, environments, wallet signals and credentials. Type checking and production builds cover all routes. Completing a real deposit → settlement → claim flow additionally requires working RPCs, an activated deployment, configured operator permissions and a funded test wallet.
+
+## Deployment directory
+
+For Vercel, set the project Root Directory to `frontend`. The pnpm workspace package name remains `achilles-web`, so the filter commands above are unchanged. Keep deployment secrets in environment settings, outside Git.
 
 ## IR-inspired experience
 

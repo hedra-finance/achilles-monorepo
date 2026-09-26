@@ -28,7 +28,7 @@ contracts/   Solidity (Hardhat)
   contracts/mocks/       local stand-ins for the pallet precompiles and external pools
   deployments/           addresses of the live deployment the web app reads
 
-web/         dapp (Next.js + wagmi/viem). Reads chain state directly and uses server routes for World ID,
+frontend/         dapp (Next.js + wagmi/viem). Reads chain state directly and uses server routes for World ID,
              testnet funding and MultiBaas indexed activity.
 ```
 
@@ -40,7 +40,7 @@ pnpm compile                      # contracts
 pnpm --filter achilles-web dev       # dapp on :3000
 ```
 
-The dapp needs `web/.env.local` (copy `web/.env.example`): public RPC URLs, a
+The dapp needs `frontend/.env.local` (copy `frontend/.env.example`): public RPC URLs, a
 WalletConnect project id, and — for server routes that grant access and supply
 testnet funds — an operator key.
 
@@ -73,10 +73,10 @@ both journeys; do not portray a pending request as completed funds delivery.
 
 | Integration | Implementation and observable behavior |
 | --- | --- |
-| Uniswap V3 | [StockBasketSource](contracts/contracts/sources/StockBasketSource.sol#L272): basket rebalancing uses `exactInputSingle`; current pool quotes and recorded valuations are shown separately in [Allocation](web/src/components/Allocation.tsx). |
+| Uniswap V3 | [StockBasketSource](contracts/contracts/sources/StockBasketSource.sol#L272): basket rebalancing uses `exactInputSingle`; current pool quotes and recorded valuations are shown separately in [Allocation](frontend/src/components/Allocation.tsx). |
 | Uniswap V2 | [StablePoolSource](contracts/contracts/sources/StablePoolSource.sol#L92): swaps, adds/removes liquidity, and values LP shares. The UI links the Sepolia pool and strategy adapter. |
-| World IDKit | [WorldVerification](web/src/components/WorldVerification.tsx), [server verification](web/src/app/api/whitelist/route.ts), and [HumanRegistry](contracts/contracts/spoke/HumanRegistry.sol): server-verified Proof of Human is bound to the wallet and action before Senior permission is granted. Junior uses a separate invite policy. |
-| Curvegrid MultiBaas | [Server proxy](web/src/app/api/multibaas/route.ts) uses a reader credential to retrieve indexed events. [PoolActivity](web/src/components/PoolActivity.tsx) interprets known events; balances and claim availability come from direct chain reads. |
+| World IDKit | [WorldVerification](frontend/src/components/WorldVerification.tsx), [server verification](frontend/src/app/api/whitelist/route.ts), and [HumanRegistry](contracts/contracts/spoke/HumanRegistry.sol): server-verified Proof of Human is bound to the wallet and action before Senior permission is granted. Junior uses a separate invite policy. |
+| Curvegrid MultiBaas | [Server proxy](frontend/src/app/api/multibaas/route.ts) uses a reader credential to retrieve indexed events. [PoolActivity](frontend/src/components/PoolActivity.tsx) interprets known events; balances and claim availability come from direct chain reads. |
 
 See [integration feedback](FEEDBACK.md) for concrete findings and remaining live
 verification. [Deployment configuration](contracts/deployments/eg_deploy.json)
