@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { parseUnits } from 'viem'
-import { opsWallet, isAddress } from '../_ops'
+import { opsWallet, toAddress } from '../_ops'
 import { client } from '@/lib/chains'
 import { PRODUCT } from '@/lib/product'
 import { mintableErc20Abi } from '@/lib/abi'
@@ -15,9 +15,13 @@ import { mintableErc20Abi } from '@/lib/abi'
  */
 const GRANT = '1000'
 
+/** A mint plus its receipt runs past the default serverless timeout. */
+export const maxDuration = 60
+
 export async function POST(req: Request) {
-  const { address } = await req.json().catch(() => ({}))
-  if (!isAddress(address)) return NextResponse.json({ error: 'bad address' }, { status: 400 })
+  const { address: raw } = await req.json().catch(() => ({}))
+  const address = toAddress(raw)
+  if (!address) return NextResponse.json({ error: 'bad address' }, { status: 400 })
 
   const chainId = PRODUCT.sepolia.chainId
   const token = PRODUCT.sepolia.usdc
