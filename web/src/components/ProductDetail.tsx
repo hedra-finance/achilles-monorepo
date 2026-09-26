@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useAccount } from 'wagmi'
 import { useProduct, useOverview, useAccountData } from '@/hooks/data'
 import { NavChart } from '@/components/NavChart'
+import { PoolActivity } from '@/components/PoolActivity'
 import { Ticket } from '@/components/Ticket'
 import { Allocation } from '@/components/Allocation'
 import { SettlementHistory } from '@/components/SettlementHistory'
@@ -12,7 +13,7 @@ import { Icon } from '@/components/Icon'
 import { QueryNotice } from '@/components/State'
 import type { RiskLayer } from '@/components/YieldFlow'
 import { RiskExplainer } from '@/components/RiskExplainer'
-import { fmt, pct, juniorYieldPercent } from '@/lib/math'
+import { fmt, pct, displayYieldPercent } from '@/lib/math'
 import { hubConfigured } from '@/lib/chains'
 import { LoadingValue } from './Skeleton'
 import { PRODUCT } from '@/lib/product'
@@ -40,10 +41,19 @@ export function ProductDetail({
   const index = selected === 'Senior' ? sr : jr
   const hist = ov.data?.history ?? []
   const srApr = p && sr >= 0 ? Number(p.tranches[sr].apr) / 1e16 : null
-  const jrY = juniorYieldPercent(
+  const jrY = displayYieldPercent(
     hist.map((h) => ({
       at: h.at,
       price: h.sharePrices[jr] == null ? null : Number(h.sharePrices[jr]) / 1e18
+    }))
+  )
+  const selectedYield = displayYieldPercent(
+    hist.map((h) => ({
+      at: h.at,
+      price:
+        h.sharePrices[index] == null
+          ? null
+          : Number(h.sharePrices[index]) / 1e18
     }))
   )
   const last = ov.data?.last ?? null
@@ -146,6 +156,7 @@ export function ProductDetail({
         <a href="#performance">Performance</a>
         <a href="#strategy">Assets & prices</a>
         <a href="#settlements">Settlements</a>
+        <a href="#pool-activity">On-chain activity</a>
         <a href="#how-it-works">
           How it works <Icon name="arrow" size={12} />
         </a>
@@ -288,6 +299,17 @@ export function ProductDetail({
                 {selected}
               </span>
             </div>
+            <p className="performance-return">
+              <strong>{pct(selectedYield.percent)}</strong>
+              {selectedYield.annualized
+                ? ' realized APR across recorded intervals'
+                : ' return over recorded history'}
+              <small>
+                {selectedYield.annualized
+                  ? 'Annualized historical performance, not a forecast.'
+                  : 'Short histories are not annualized.'}
+              </small>
+            </p>
             <NavChart
               loading={loading}
               history={hist}
@@ -307,6 +329,7 @@ export function ProductDetail({
               !!ov.data.issues.includes('sources')
             }
           />
+          <PoolActivity />
           <section id="how-it-works" className="detail-settlement card">
             <div className="desk-heading">
               <div>

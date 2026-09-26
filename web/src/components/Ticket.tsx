@@ -146,7 +146,7 @@ export function Ticket({
         : acct.isError
           ? 'Account data unavailable'
           : eligible === false && mode === 'invest'
-            ? 'Get access below to deposit'
+            ? 'Complete access to deposit'
             : balance == null || (mode === 'invest' && eligible == null)
               ? 'Checking your account…'
               : tooMuch
@@ -192,7 +192,11 @@ export function Ticket({
       </div>
       <div className="ticket-body">
         <Access
-          key={address ?? 'disconnected'}
+          key={`${address ?? 'disconnected'}-${type}-${mode}`}
+          onChooseJunior={() => {
+            onTypeChange('Junior')
+            setMsg(null)
+          }}
           eligible={eligible}
           type={type}
           mode={mode}

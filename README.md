@@ -9,7 +9,7 @@ independent yield sources on different networks.
   spoke network; other spokes run capital without an entry point of their own.
 - Capital is allocated across yield sources that can live on any spoke: a
   tokenized-stock basket traded against Uniswap V3 pools, and a stablecoin pair
-  supplied as Uniswap V2-style LP.
+  supplied to a Uniswap V2 pair on Sepolia.
 - Shares are ERC-1404 — only allow-listed wallets can hold them, with the
   allow-list itself replicated from the hub to every spoke.
 
@@ -28,8 +28,8 @@ contracts/   Solidity (Hardhat)
   contracts/mocks/       local stand-ins for the pallet precompiles and external pools
   deployments/           addresses of the live deployment the web app reads
 
-web/         dapp (Next.js + wagmi/viem). Talks to the chains directly — no
-             indexer, no backend service, no SDK.
+web/         dapp (Next.js + wagmi/viem). Reads chain state directly and uses server routes for World ID,
+             testnet funding and MultiBaas indexed activity.
 ```
 
 ## Run
@@ -41,5 +41,5 @@ pnpm --filter achilles-web dev       # dapp on :3000
 ```
 
 The dapp needs `web/.env.local` (copy `web/.env.example`): public RPC URLs, a
-WalletConnect project id, and — only for the two server routes that hand out
-allow-list entries and testnet gas — an operator key.
+WalletConnect project id, and — for server routes that grant access and supply
+testnet funds — an operator key.

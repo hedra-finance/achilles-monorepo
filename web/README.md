@@ -8,10 +8,10 @@ From the repository root:
 
 ```sh
 pnpm install
-pnpm --filter hedra-web dev
-pnpm --filter hedra-web typecheck
-pnpm --filter hedra-web test
-pnpm --filter hedra-web build
+pnpm --filter achilles-web dev
+pnpm --filter achilles-web typecheck
+pnpm --filter achilles-web test
+pnpm --filter achilles-web build
 ```
 
 Copy `.env.example` to `.env.local` inside `web/` and configure the public Settlement Hub RPC and WalletConnect project ID. These values are intentionally left blank in the template. Restart the development server after changing public environment variables; deployment changes require a rebuild.
@@ -36,13 +36,20 @@ A claimable deposit amount represents the original USDC request, while a claimab
 
 `src/lib/writes.ts` simulates operations, checks approval receipts and allowance propagation, and confirms transaction receipts. The investment panel reacquires the wallet client after a network switch and locks tranche selection while submitting.
 
-`POST /api/whitelist` requires the invite code and grants the configured vault permissions. `POST /api/gas` requires Hub investor permission and tops up a low Sepolia ETH balance. Both require server-only `OPS_PRIVATE_KEY` and Hub configuration. The whitelist endpoint also requires a server-only `INVITE_CODE`; no public default is accepted. Invalid inputs return JSON errors; missing setup returns 503; unsuccessful network operations return 502. Never expose the operations key through a `NEXT_PUBLIC_` variable.
+- `GET /api/worldid` signs a short-lived World ID context on the server. Configure public app/RP identifiers and environment plus server-only `RP_SIGNING_KEY`.
+- `POST /api/whitelist` requires an explicit `senior` or `junior` tranche. Senior requires a verified World ID 4.0 Proof of Human for the expected action, environment and wallet signal. The HumanRegistry records one human-to-wallet binding; retries resume the same binding if the subsequent Hub grant failed. Junior uses server-only `INVITE_CODE`, without a default value, and cannot grant Senior.
+- `POST /api/gas` requires permission for either configured Sepolia tranche and tops up to 0.02 test ETH. `POST /api/faucet` tops up the configured test token to 1,000 USDC. Server writes need `OPS_PRIVATE_KEY`; access and gas also need the Hub configuration.
+- `GET /api/multibaas?limit=25` reads indexed Sepolia events using server-only `MULTIBAAS_URL` and `MULTIBAAS_ACHILLES_READER`. The admin key is not used by the application. Missing integration configuration returns 503; unavailable upstream data returns a JSON error without hiding direct chain data.
 
-These are hackathon testnet helpers, not hardened public faucet/authentication infrastructure. Before a broader release, add durable per-wallet limits, concurrency/idempotency protection and wallet ownership authentication. An allow-list check alone does not prevent repeated faucet withdrawals.
+The operations key needs the appropriate Hub grant, HumanRegistry verifier and token mint permissions, as well as testnet gas. Never expose it through a `NEXT_PUBLIC_` variable. Broadcast access grants remain pending until the eligibility read confirms them; mined funding transactions are checked for success. Proof payloads and server credentials are not logged.
+
+An in-process queue and bounded contention retries reduce concurrent operations-key failures. They are not a distributed lock. These are testnet helpers: balance thresholds are not durable per-person rate limits, and simultaneous requests on separate serverless instances can race. Broader release needs shared idempotency/rate limits and wallet ownership authentication.
+
+`NEXT_PUBLIC_SETTLE_SECS` optionally reflects the keeper cadence. Set it to the actual operator configuration; leaving it empty uses the registered schedule. It is an estimate, not a promised completion time.
 
 ## Verification limits
 
-Unit tests cover return calculations, complete-loss prices, exact integer formatting and strict token amount parsing. Type checking and production builds cover all routes. Completing a real deposit → settlement → claim flow additionally requires working RPCs, an activated deployment, configured operator permissions and a funded test wallet.
+Unit tests cover return calculations, complete-loss prices, exact integer formatting and strict token amount parsing, and rejection of mismatched World actions, environments, wallet signals and credentials. Type checking and production builds cover all routes. Completing a real deposit → settlement → claim flow additionally requires working RPCs, an activated deployment, configured operator permissions and a funded test wallet.
 
 ## IR-inspired experience
 
@@ -52,7 +59,7 @@ The flow is **understand the sources → choose a risk layer → request an inve
 
 Stocks and stablecoin liquidity are the configured testnet sources. Lending, bonds, real-world assets and custom strategies are explicitly marked as product vision, not available integrations. The new presentation reuses the existing wallet, transaction and API implementation.
 
-The Webpack development path is available via `pnpm --filter hedra-web dev --webpack`. Optional payment-module aliases use exact matches so root module aliases do not consume subpaths.
+The Webpack development path is available via `pnpm --filter achilles-web dev --webpack`. Optional payment-module aliases use exact matches so root module aliases do not consume subpaths.
 
 ## Market workspace
 
@@ -64,7 +71,7 @@ The product detail page places stock prices and holdings beside a guided investm
 - **Price basis:** pool quotes are testnet USDC prices. Recorded valuation prices come from the last finalized settlement. Their difference is labeled “Vs. settlement”; it is not a daily return. Stock values exclude idle adapter cash. Missing values stay distinct from zero balances.
 - **Performance:** selected-layer share prices, optional layer comparison, date ranges and an accessible settlement scrubber. At least two recorded points are required to draw a series.
 - **Settlements:** recent recorded rounds, cycle details from the registry and CSV export of loaded history. A missing cycle trace does not change a round's recorded pricing status.
-- **Investment:** wallet/network, access, gas and token prerequisites; balance percentage shortcuts; estimated payout and last share price; review before submitting; existing request and claim actions. The UI does not offer a test-USDC faucet because none is implemented. It shows the configured token address for team funding.
+- **Investment:** wallet/network, tranche-specific access, gas and token prerequisites; a test-USDC faucet; balance percentage shortcuts; estimated payout and last share price; review before submitting; existing request and claim actions. Senior uses World ID and Junior uses an invite code. The configured token address remains visible.
 
 The gas helper accepts investor permission on either configured Sepolia tranche. The server still requires its operating key and funded account. No wallet transactions are generated by browsing market data or reviewing a request.
 

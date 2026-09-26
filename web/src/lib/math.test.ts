@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   settlementAvgAprPercent,
-  juniorYieldPercent,
+  displayYieldPercent,
   sqrtPriceToWad,
   nextSettlement,
   fmt,
@@ -43,8 +43,8 @@ test('avg apr: 1% per day ≈ 365% apr', () => {
   ])
   assert.ok(apr !== null && Math.abs(apr - 365.25) < 0.5, String(apr))
 })
-test('junior yield: short history is not annualized', () => {
-  const y = juniorYieldPercent([
+test('tranche yield: short history is not annualized', () => {
+  const y = displayYieldPercent([
     { at: d(0), price: 1 },
     { at: d(1), price: 1.02 }
   ])
@@ -81,7 +81,7 @@ test('formatting preserves integers larger than the safe number range', () => {
 })
 test('zero share price reports a total loss instead of disappearing', () => {
   assert.deepEqual(
-    juniorYieldPercent([
+    displayYieldPercent([
       { at: d(0), price: 1 },
       { at: d(1), price: 0 }
     ]),
@@ -94,4 +94,13 @@ test('zero share price reports a total loss instead of disappearing', () => {
     ]),
     null
   )
+})
+
+test('entry cost over a few hours stays a period loss instead of a projected APR', () => {
+  const result = displayYieldPercent([
+    { at: d(0), price: 1 },
+    { at: d(2), price: 0.994 }
+  ])
+  assert.equal(result.annualized, false)
+  assert.ok(result.percent !== null && Math.abs(result.percent + 0.6) < 1e-9)
 })

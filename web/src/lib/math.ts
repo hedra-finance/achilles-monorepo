@@ -49,7 +49,7 @@ const valid = (s: Pt[]) =>
       p.price >= 0
   )
 
-/** Simple average of each settlement interval's annualized return. Stays sane even with a short history. */
+/** Simple average of each settlement interval's annualized return. Use displayYieldPercent for UI history guards. */
 export function settlementAvgAprPercent(series: Pt[]): number | null {
   const pts = valid(series)
   if (pts.length < 2) return null
@@ -64,8 +64,8 @@ export function settlementAvgAprPercent(series: Pt[]): number | null {
   return n === 0 ? null : (sum / n) * 100
 }
 
-/** Junior display yield — left un-annualized (shown as the raw period return) until the history spans 24 hours. */
-export function juniorYieldPercent(
+/** Display yield for any tranche — left un-annualized (shown as the raw period return) until the history spans 24 hours. */
+export function displayYieldPercent(
   series: Pt[],
   minAnnualizeMs = 86_400_000
 ): { percent: number | null; annualized: boolean } {
