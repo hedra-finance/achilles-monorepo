@@ -23,7 +23,7 @@ export default function WorldVerification({
   context: WorldContext
   address: string
   verify: (proof: unknown) => Promise<boolean>
-  fail: () => void
+  fail: (errorCode: string) => void
   close: (completed: boolean) => void
 }) {
   const completed = useRef(false)
@@ -45,7 +45,11 @@ export default function WorldVerification({
           throw new Error('Senior access could not be confirmed. Please retry.')
         completed.current = true
       }}
-      onError={() => fail()}
+      onError={(errorCode) => {
+        fail(String(errorCode))
+        // A new attempt must fetch a fresh signed RP context, not reuse this nonce.
+        close(false)
+      }}
       onSuccess={() => close(true)}
     />
   )
