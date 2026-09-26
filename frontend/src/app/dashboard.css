@@ -353,6 +353,38 @@
   line-height: 1.5;
   margin: 4px 0 12px;
 }
+/* In-flight requests under the trade panel. Sits above the footnote, scrolls with
+   the panel rather than growing it, so a busy account cannot push the form off screen. */
+.desk-trade-tracker {
+  flex: none;
+  border-top: 1px solid #1c334a;
+  margin: 12px 0 0;
+  padding: 10px 0 0;
+  max-height: 260px;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+}
+.desk-trade-tracker > .row {
+  justify-content: space-between;
+  align-items: baseline;
+}
+.desk-trade-tracker-item {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #16293c;
+  border-radius: 8px;
+  padding: 8px 9px;
+  background: #0c1826;
+}
+.desk-trade-tracker-item > .row {
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.desk-trade-tracker-item strong {
+  font-size: 12px;
+}
 .desk-trade-footnote {
   flex: none;
   display: flex;

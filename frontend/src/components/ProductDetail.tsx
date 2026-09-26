@@ -5,6 +5,7 @@ import { useProduct, useOverview, useAccountData } from '@/hooks/data'
 import { NavChart } from './NavChart'
 import { PoolActivity } from './PoolActivity'
 import { Ticket } from './Ticket'
+import { RequestTracker } from './RequestTracker'
 import { Allocation } from './Allocation'
 import { SettlementHistory } from './SettlementHistory'
 import { Icon } from './Icon'
@@ -413,6 +414,7 @@ export function ProductDetail({
             <ScrollHint target={ticketScroll} />
           </div>
           <div className="desk-trade-actions" ref={setActionSlot} />
+          <RequestTracker decimals={dec} />
           <p className="desk-trade-footnote">
             <Icon name="clock" size={12} /> Request → settle → claim. Capital is
             at risk.
