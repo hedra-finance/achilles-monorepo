@@ -161,6 +161,7 @@ export function DistributionChart({
       <div className="distribution-legend" aria-label="Chart breakdown">
         {items.map((item) => {
           const slice = slices.find((s) => s.id === item.id)
+          const network = item.chainId ? sourceChain(item.chainId) : null
           return (
             <button
               type="button"
@@ -175,10 +176,16 @@ export function DistributionChart({
             >
               <i style={{ background: item.color }} />
               {item.ticker && <StockLogo ticker={item.ticker} />}
+              {item.chainId && <ChainBadge chainId={item.chainId} />}
               <span>
                 <strong>{item.label}</strong>
-                {item.chainId && <ChainBadge chainId={item.chainId} />}
-                {!target && <small>{fmt(item.value, decimals)} USDC</small>}
+                {(network || !target) && (
+                  <small className="source-meta">
+                    {network && <span>{network.name}</span>}
+                    {network && !target && <span aria-hidden="true">·</span>}
+                    {!target && <span>{fmt(item.value, decimals)} USDC</span>}
+                  </small>
+                )}
               </span>
               <b>{pct(slice?.percent, 1)}</b>
             </button>

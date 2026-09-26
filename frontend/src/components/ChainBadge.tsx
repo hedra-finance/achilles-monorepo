@@ -11,10 +11,13 @@ export function sourceChain(chainId: number) {
 
 export function ChainBadge({ chainId }: { chainId: number }) {
   const chain = sourceChain(chainId)
-  return (
-    <span className="source-chain">
-      {chain && <img src={chain.logo} width={16} height={16} alt="" />}
-      <span>{chain?.name ?? `Chain ${chainId}`}</span>
-    </span>
-  )
+  return chain ? (
+    <img
+      className="source-chain-logo"
+      src={chain.logo}
+      width={24}
+      height={24}
+      alt=""
+    />
+  ) : null
 }

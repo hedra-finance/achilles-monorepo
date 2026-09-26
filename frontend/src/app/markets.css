@@ -2379,23 +2379,23 @@
   }
 }
 
-/* Chain identity belongs to the source, independent of its chart color or selection. */
-.distribution-legend .source-chain {
+/* Chain identity sits beside the source name; network and amount share its second line. */
+.distribution-legend small.source-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin: 5px 0;
-  color: #a8c4db;
-  font-size: 10px;
+  gap: 4px 7px;
+  color: #8eafc9;
   line-height: 1.5;
 }
-.source-chain img {
+.source-chain-logo {
   display: block;
-  flex: 0 0 16px;
-  width: 16px;
-  height: 16px;
-  padding: 2px;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  padding: 4px;
   box-sizing: content-box;
   border-radius: 50%;
   background: #0a1424;
+  align-self: flex-start;
 }
