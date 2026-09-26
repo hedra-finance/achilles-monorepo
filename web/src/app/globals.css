@@ -1,0 +1,47 @@
+/* Plain, unstyled layout — no design system, just enough CSS to keep things readable and functional. */
+:root {
+  --bg: #fff; --panel: #fff; --ink: #000; --muted: #555; --line: #ccc;
+  --accent: #000; --senior: #000; --junior: #555; --bad: #b00000; --ok: #006000;
+  --mono: monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; }
+a { color: #0000ee; }
+button { font: inherit; }
+.wrap { max-width: 900px; margin: 0 auto; padding: 0 16px; }
+.nav { border-bottom: 1px solid var(--line); }
+.nav .brand { font-weight: bold; margin-right: 16px; }
+.nav a.link { margin-right: 12px; }
+.nav a.link.on { text-decoration: underline; }
+.nav .spacer { flex: 1; }
+.grid { display: grid; gap: 12px; } .grid-2 { grid-template-columns: 1fr 1fr; } .grid-3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 700px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+.card { border: 1px solid var(--line); padding: 12px; }
+.card h3 { margin: 0 0 8px; font-size: 13px; font-weight: bold; }
+.kpi { font-size: 18px; font-weight: bold; }
+.sub { color: var(--muted); font-size: 13px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pill { display: inline-block; padding: 1px 6px; border: 1px solid var(--line); font-size: 12px; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: 12px; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 6px; border-bottom: 1px solid var(--line); vertical-align: top; } tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; }
+.btn { border: 1px solid var(--line); background: var(--panel); padding: 6px 10px; cursor: pointer; }
+.btn.primary { font-weight: bold; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.sm { padding: 3px 8px; font-size: 13px; }
+.seg { display: inline-flex; border: 1px solid var(--line); }
+.seg button { border: 0; background: transparent; padding: 5px 10px; cursor: pointer; }
+.seg button.on { text-decoration: underline; font-weight: bold; }
+input.amt { width: 100%; font: inherit; font-size: 16px; padding: 6px 8px; border: 1px solid var(--line); }
+select { font: inherit; padding: 4px 6px; border: 1px solid var(--line); background: var(--panel); }
+.err { color: var(--bad); font-size: 13px; } .okmsg { color: var(--ok); font-size: 13px; }
+.steps { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 0; padding: 0; list-style: none; font-size: 13px; }
+.steps li { display: flex; gap: 6px; align-items: baseline; } .steps .dot { width: 6px; height: 6px; background: var(--line); flex: none; }
+.steps .done .dot { background: var(--ok); } .steps .failed .dot { background: var(--bad); }
+.steps a { font-family: var(--mono); font-size: 12px; }
+.mono { font-family: var(--mono); font-size: 12px; }
+.bar { height: 6px; background: #eee; overflow: hidden; display: flex; }
+.bar span { display: block; height: 100%; background: #888; }
+.hero { padding: 16px 0 4px; } .hero h1 { margin: 0 0 4px; font-size: 20px; } .hero p { margin: 0; color: var(--muted); }
+.muted { color: var(--muted); }
