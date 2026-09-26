@@ -9,6 +9,6 @@ const config: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ['achilles-contracts'],
   turbopack: { resolveAlias: Object.fromEntries(STUBS.map((s) => [s, stub])) },
-  webpack: (c) => { c.resolve.alias = { ...c.resolve.alias, ...Object.fromEntries(STUBS.map((s) => [s, require.resolve(stub)])) }; return c },
+  webpack: (c) => { c.resolve.alias = { ...c.resolve.alias, ...Object.fromEntries(STUBS.map((s) => [`${s}$`, require.resolve(stub)])) }; return c },
 }
 export default config

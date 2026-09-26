@@ -41,3 +41,13 @@ These are hackathon testnet helpers, not hardened public faucet/authentication i
 ## Verification limits
 
 Unit tests cover return calculations, complete-loss prices, exact integer formatting and strict token amount parsing. Type checking and production builds cover all routes. Completing a real deposit → settlement → claim flow additionally requires working RPCs, an activated deployment, configured operator permissions and a funded test wallet.
+
+## IR-inspired experience
+
+This design variant uses a cinematic midnight coastline, luminous source connections and layered glass tranche controls. The background is an AI-generated environment; the approved Achilles logo is preserved separately.
+
+The flow is **understand the sources → choose a risk layer → request an investment → follow settlement → claim**. Hero controls, risk-profile controls and the investment ticket share the selected tranche. The yield/loss explainer shows allocation priority without hypothetical financial returns. Mobile offers a direct jump to the investment section and persistent bottom navigation.
+
+Stocks and stablecoin liquidity are the configured testnet sources. Lending, bonds, real-world assets and custom strategies are explicitly marked as product vision, not available integrations. The new presentation reuses the existing wallet, transaction and API implementation.
+
+The Webpack development path is available via `pnpm --filter hedra-web dev --webpack`. Optional payment-module aliases use exact matches so root module aliases do not consume subpaths.

@@ -8,20 +8,16 @@ import { Access } from '@/components/Access'
 import { Allocation } from '@/components/Allocation'
 import { Icon } from '@/components/Icon'
 import { QueryNotice } from '@/components/State'
-import {
-  fmt,
-  pct,
-  settlementAvgAprPercent,
-  juniorYieldPercent,
-  nextSettlement
-} from '@/lib/math'
-import { PRODUCT } from '@/lib/product'
+import { YieldFlow, type RiskLayer } from '@/components/YieldFlow'
+import { RiskExplainer } from '@/components/RiskExplainer'
+import { fmt, pct, juniorYieldPercent } from '@/lib/math'
 import { hubConfigured } from '@/lib/chains'
+import { PRODUCT } from '@/lib/product'
 
 export default function ProductPage() {
   const product = useProduct()
   const ov = useOverview()
-  const [selected, setSelected] = useState<'Senior' | 'Junior'>('Senior')
+  const [selected, setSelected] = useState<RiskLayer>('Senior')
   const [transactionBusy, setTransactionBusy] = useState(false)
   const p = product.data
   const sr = p?.tranches.findIndex((t) => t.type === 'Senior') ?? -1
@@ -33,70 +29,107 @@ export default function ProductPage() {
       price: h.sharePrices[i] == null ? null : Number(h.sharePrices[i]) / 1e18
     }))
   const srApr = p && sr >= 0 ? Number(p.tranches[sr].apr) / 1e16 : null
-  const srReal = sr >= 0 ? settlementAvgAprPercent(series(sr)) : null
   const jrY = juniorYieldPercent(series(jr))
   const last = ov.data?.last ?? null
-  const next =
-    p && p.settlement.length > 0 ? nextSettlement(p.settlement) : null
-  const loading = hubConfigured && product.isPending
+  const time = last?.at?.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
   return (
     <>
-      <div className="page-topline">
-        <span className="eyebrow">THE ACHILLES VAULT</span>
-        <span className="pill">
-          <span className="status-dot amber" /> Testnet
-        </span>
-      </div>
-      <section className="strategy-hero">
-        <div className="hero-copy">
-          <h1>
-            One strategy.
-            <br />
-            <span>Your choice of risk.</span>
-          </h1>
-          <p>
-            Put your capital to work across tokenized stocks and stablecoin
-            liquidity. Choose the layer that fits you.
-          </p>
-          <div className="hero-chips">
-            <span>
-              <span className="usdc-symbol">$</span> Deposit USDC
-            </span>
-            <span>
-              <Icon name="layers" size={15} /> Two risk profiles
-            </span>
-            <span>
-              <Icon name="globe" size={15} /> Cross-chain
-            </span>
-          </div>
-        </div>
-        <div className="hero-art">
+      <section className="ir-hero" aria-labelledby="hero-title">
+        <div className="coast-scene" aria-hidden="true">
           <Image
-            src="/brand/achilles.png"
-            alt="Achilles — blue A, warrior helmet, and layered capital"
-            width={1302}
-            height={998}
+            src="/scenes/midnight-coast.png"
+            alt=""
+            fill
             priority
-            sizes="(max-width: 700px) 240px, 340px"
+            sizes="100vw"
           />
         </div>
+        <div className="ir-intro">
+          <span className="ir-kicker">
+            <span className="spark" /> THE YIELD STRUCTURING PROTOCOL
+          </span>
+          <h1 id="hero-title">
+            Structure any yield.
+            <br />
+            <span>On any chain.</span>
+          </h1>
+          <p>One strategy. Two ways to take risk. Your choice.</p>
+          <a className="ir-mobile-jump" href="#position">
+            Choose your layer <Icon name="arrow" size={13} />
+          </a>
+        </div>
+        <YieldFlow
+          selected={selected}
+          disabled={transactionBusy}
+          onSelect={setSelected}
+        />
+        <div className="hero-continue">
+          <span>
+            <span className="status-dot amber" /> Testnet experience <i />{' '}
+            Stocks + stablecoin liquidity
+          </span>
+          <a className="btn primary" href="#position">
+            Continue with {selected}
+            <Icon name="arrow" size={16} />
+          </a>
+        </div>
       </section>
+      <div className="ir-stats" aria-label="Strategy overview">
+        <div>
+          <span>STRATEGY VALUE</span>
+          <strong>
+            {fmt(last?.productNav, p?.decimals ?? 6, 0)} <small>USDC</small>
+          </strong>
+          <p>
+            {last
+              ? `Finalized settlement #${last.id}`
+              : 'Awaiting settlement data'}
+          </p>
+        </div>
+        <div>
+          <span>
+            <i className="legend-dot senior" /> SENIOR TARGET APR
+          </span>
+          <strong>{pct(srApr)}</strong>
+          <p>Priority yield · not guaranteed</p>
+        </div>
+        <div>
+          <span>
+            <i className="legend-dot junior" /> JUNIOR{' '}
+            {jrY.annualized ? 'REALIZED APR' : 'PERIOD RETURN'}
+          </span>
+          <strong>{pct(jrY.percent)}</strong>
+          <p>Residual yield · first-loss exposure</p>
+        </div>
+        <div>
+          <span>STRATEGY COMPOSITION</span>
+          <strong>
+            {PRODUCT.weights[PRODUCT.robinhood.chainId] / 100} <small>/</small>{' '}
+            {PRODUCT.weights[PRODUCT.sepolia.chainId] / 100}{' '}
+            <small>target</small>
+          </strong>
+          <p>Stock basket + stablecoin LP</p>
+        </div>
+      </div>
       {!hubConfigured ? (
         <QueryNotice title="Live data is not connected yet">
-          Explore the strategy below. Balances, rates, and transactions will be
-          available when the network connection is configured.
+          Explore the strategy and choose a layer. Live values appear when the
+          network connection is configured.
         </QueryNotice>
       ) : product.isError ? (
         <QueryNotice
-          title="We couldn’t reach the settlement network"
+          title="The settlement network is unavailable"
           retry={() => {
             void product.refetch()
           }}
           busy={product.isFetching}
         >
-          Your wallet is unchanged. Try loading the product again.
+          Your wallet is unchanged. Try refreshing the connection.
         </QueryNotice>
-      ) : ov.data?.issues.length || ov.isError ? (
+      ) : ov.isError || ov.data?.issues.length ? (
         <QueryNotice
           title="Some live data is unavailable"
           retry={() => {
@@ -104,179 +137,175 @@ export default function ProductPage() {
           }}
           busy={ov.isFetching}
         >
-          Available values are shown below. Missing values are marked with a
-          dash.
+          Available values are shown. Missing values remain marked with a dash.
         </QueryNotice>
       ) : null}
-      <div className="metrics-grid">
-        <div className="metric">
-          <div className="metric-label">
-            Total strategy value <Icon name="coins" size={17} />
+      <section
+        id="position"
+        className="position-section"
+        aria-labelledby="position-title"
+      >
+        <div className="ir-section-heading">
+          <div>
+            <span className="eyebrow">01 / CHOOSE YOUR POSITION</span>
+            <h2 id="position-title">
+              Your capital. <span>Your terms.</span>
+            </h2>
           </div>
-          <div className={'metric-value' + (loading ? ' skeleton-text' : '')}>
-            {fmt(last?.productNav, p?.decimals ?? 6, 0)}
-            <small>USDC</small>
-          </div>
-          <div className="metric-foot">
-            {last ? 'Settlement #' + last.id : 'Awaiting settlement data'}
-            <span className="metric-tag">NAV</span>
-          </div>
+          <p>
+            The same underlying strategy.
+            <br />A different place in the capital structure.
+          </p>
         </div>
-        <div className="metric">
-          <div className="metric-label">
-            <span className="legend-dot senior" />
-            Senior target APR <Icon name="shield" size={17} />
-          </div>
-          <div className="metric-value senior-text">{pct(srApr)}</div>
-          <div className="metric-foot">
-            Priority yield allocation{' '}
-            <span>
-              {srReal == null ? 'Target rate' : pct(srReal) + ' realized'}
-            </span>
-          </div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">
-            <span className="legend-dot junior" />
-            Junior {jrY.annualized ? 'realized APR' : 'period return'}{' '}
-            <Icon name="chart" size={17} />
-          </div>
-          <div className="metric-value junior-text">{pct(jrY.percent)}</div>
-          <div className="metric-foot">
-            Residual upside · first-loss risk<span>Variable</span>
-          </div>
-        </div>
-      </div>
-      <div className="invest-layout">
-        <div className="strategy-content">
-          <section className="card performance-card">
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">PERFORMANCE</span>
-                <h2>Share price over time</h2>
-              </div>
-              <span className="period-label">Settlement history</span>
-            </div>
-            <div className="chart-legend">
-              <span>
-                <i className="legend-dot senior" />
-                Senior
-              </span>
-              <span>
-                <i className="legend-dot junior" />
-                Junior
-              </span>
-              <span className="chart-unit">USDC / share</span>
-            </div>
-            <NavChart history={hist} sr={sr} jr={jr} />
-            <div className="chart-footer">
-              <Icon name="clock" size={15} />
-              <span>
-                {next
-                  ? 'Next cycle · ' +
-                    next.cycleEnd.toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })
-                  : 'Prices update after each settlement'}
-              </span>
-              <span>
-                {last?.at
-                  ? 'Last update ' +
-                    last.at.toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })
-                  : 'On-chain settlement data'}
-              </span>
-            </div>
-          </section>
-          <section className="risk-section">
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">CHOOSE YOUR LAYER</span>
-                <h2>Same strategy. Different exposure.</h2>
-              </div>
-            </div>
-            <div className="risk-grid">
+        <div className="position-layout">
+          <div className="position-guide">
+            <div
+              className="profile-selector"
+              role="group"
+              aria-label="Risk profile"
+            >
               <button
                 disabled={transactionBusy}
-                className={
-                  'risk-card senior-card' +
-                  (selected === 'Senior' ? ' selected' : '')
-                }
                 aria-pressed={selected === 'Senior'}
+                className={selected === 'Senior' ? 'selected' : ''}
                 onClick={() => setSelected('Senior')}
               >
-                <div className="risk-card-top">
-                  <span className="risk-icon">
-                    <Icon name="shield" size={21} />
-                  </span>
-                  <span className="radio-indicator" />
-                </div>
-                <h3>Senior</h3>
-                <span className="risk-label">PRIORITY YIELD</span>
-                <p>
-                  Receives yield first, up to its target rate. Junior capital
-                  absorbs losses first.
-                </p>
-                <span className="risk-card-foot">
-                  Lower relative risk <Icon name="arrow" size={16} />
+                <Icon name="shield" size={21} />
+                <span>
+                  <strong>Senior</strong>
+                  <small>Prioritize yield</small>
                 </span>
+                <span className="radio-indicator" />
               </button>
               <button
                 disabled={transactionBusy}
-                className={
-                  'risk-card junior-card' +
-                  (selected === 'Junior' ? ' selected' : '')
-                }
                 aria-pressed={selected === 'Junior'}
+                className={
+                  'junior' + (selected === 'Junior' ? ' selected' : '')
+                }
                 onClick={() => setSelected('Junior')}
               >
-                <div className="risk-card-top">
-                  <span className="risk-icon">
-                    <Icon name="chart" size={21} />
-                  </span>
-                  <span className="radio-indicator" />
-                </div>
-                <h3>Junior</h3>
-                <span className="risk-label">RESIDUAL UPSIDE</span>
-                <p>
-                  Receives yield after Senior. Takes the first losses in
-                  exchange for variable upside.
-                </p>
-                <span className="risk-card-foot">
-                  Higher risk & reward <Icon name="arrow" size={16} />
+                <Icon name="chart" size={21} />
+                <span>
+                  <strong>Junior</strong>
+                  <small>Take residual upside</small>
                 </span>
+                <span className="radio-indicator" />
               </button>
             </div>
-            <p className="risk-note">
-              <Icon name="info" size={14} />
-              Both tranches can lose capital. Target rates are not guaranteed
-              returns.
-            </p>
-          </section>
-        </div>
-        <aside className="ticket-column">
-          <Ticket
-            product={p}
-            last={last}
-            type={selected}
-            onTypeChange={setSelected}
-            onBusyChange={setTransactionBusy}
-          />
-          <Access />
-        </aside>
-      </div>
-      <section className="allocation-section">
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">BEHIND THE STRATEGY</span>
-            <h2>{PRODUCT.name}</h2>
+            <div
+              className={'selected-profile ' + selected.toLowerCase()}
+              aria-live="polite"
+            >
+              <span className="eyebrow">
+                {selected === 'Senior'
+                  ? 'AHEAD IN THE YIELD QUEUE'
+                  : 'FIRST LOSS. RESIDUAL REWARD.'}
+              </span>
+              <h3>
+                {selected === 'Senior'
+                  ? 'Let priority work for you.'
+                  : 'Take a different side of yield.'}
+              </h3>
+              <p>
+                {selected === 'Senior'
+                  ? 'Receive available yield first, up to the target rate. Junior capital absorbs losses before your layer.'
+                  : 'Receive the yield left after Senior’s allocation. In exchange, your capital absorbs the strategy’s losses first.'}
+              </p>
+              <div className="profile-rate">
+                <span>
+                  {selected === 'Senior'
+                    ? 'Target APR'
+                    : jrY.annualized
+                      ? 'Realized APR'
+                      : 'Period return'}
+                </span>
+                <strong>
+                  {selected === 'Senior' ? pct(srApr) : pct(jrY.percent)}
+                </strong>
+              </div>
+            </div>
+            <RiskExplainer selected={selected} />
+            <div className="settlement-journey">
+              <span className="eyebrow">A REQUEST, THEN A SETTLEMENT.</span>
+              <div>
+                <span>
+                  <b>01</b>Request
+                </span>
+                <Icon name="arrow" size={14} />
+                <span>
+                  <b>02</b>Settle
+                </span>
+                <Icon name="arrow" size={14} />
+                <span>
+                  <b>03</b>Claim
+                </span>
+              </div>
+              <p>
+                Deposits become claimable shares after settlement. Redemptions
+                follow the same cycle; withdrawals are not instant.
+              </p>
+            </div>
           </div>
-          <span className="pill">
-            <Icon name="globe" size={14} /> Two yield networks
+          <aside className="ir-ticket-column">
+            <div className="ticket-context">
+              <span className="spark" /> BUILD YOUR POSITION{' '}
+              <span>SEPOLIA</span>
+            </div>
+            <Ticket
+              product={p}
+              last={last}
+              type={selected}
+              onTypeChange={setSelected}
+              onBusyChange={setTransactionBusy}
+            />
+            <Access />
+          </aside>
+        </div>
+      </section>
+      <section className="ir-performance" aria-labelledby="performance-title">
+        <div className="ir-section-heading">
+          <div>
+            <span className="eyebrow">02 / FOLLOW THE PERFORMANCE</span>
+            <h2 id="performance-title">
+              Every settlement. <span>In view.</span>
+            </h2>
+          </div>
+          <span className="period-label">
+            {time ? `Updated ${time}` : 'Settlement history'}
           </span>
+        </div>
+        <div className="card performance-card">
+          <div className="chart-legend">
+            <span>
+              <i className="legend-dot senior" /> Senior
+            </span>
+            <span>
+              <i className="legend-dot junior" /> Junior
+            </span>
+            <span className="chart-unit">USDC / share</span>
+          </div>
+          <NavChart history={hist} sr={sr} jr={jr} />
+          <div className="chart-footer">
+            <Icon name="info" size={14} />
+            Finalized on-chain share prices. Past returns do not guarantee
+            future performance.
+          </div>
+        </div>
+      </section>
+      <section
+        id="strategy"
+        className="ir-allocation"
+        aria-labelledby="strategy-title"
+      >
+        <div className="ir-section-heading">
+          <div>
+            <span className="eyebrow">03 / LOOK UNDER THE SURFACE</span>
+            <h2 id="strategy-title">
+              Know where <span>your capital goes.</span>
+            </h2>
+          </div>
+          <span className="pill">Configured testnet strategy</span>
         </div>
         <Allocation
           product={p}
@@ -288,24 +317,59 @@ export default function ProductPage() {
           }
         />
       </section>
-      <section className="journey-strip">
-        <div>
-          <span>01</span>
-          <strong>Request</strong>
-          <p>Choose a tranche and deposit USDC on Sepolia.</p>
+      <section id="vision" className="vision-section">
+        <span className="eyebrow">THE VISION / BEYOND THIS STRATEGY</span>
+        <h2>
+          One layer.
+          <br />
+          <span>A wider world of yield.</span>
+        </h2>
+        <p>
+          Achilles is designed around a simple idea: separate where yield comes
+          from from how you take risk.
+        </p>
+        <div className="vision-grid">
+          {[
+            {
+              title: 'DeFi lending',
+              icon: 'wallet',
+              text: 'Money-market strategies'
+            },
+            {
+              title: 'Treasuries & bonds',
+              icon: 'shield',
+              text: 'Fixed-income exposure'
+            },
+            {
+              title: 'Real-world assets',
+              icon: 'globe',
+              text: 'Credit and real estate'
+            },
+            {
+              title: 'Custom strategies',
+              icon: 'layers',
+              text: 'A broader strategy design space'
+            }
+          ].map((v) => (
+            <div key={v.title}>
+              <Icon
+                name={v.icon as 'wallet' | 'shield' | 'globe' | 'layers'}
+                size={24}
+              />
+              <h3>{v.title}</h3>
+              <p>{v.text}</p>
+              <span>Planned · not available</span>
+            </div>
+          ))}
         </div>
-        <Icon name="arrow" size={18} />
-        <div>
-          <span>02</span>
-          <strong>Settle</strong>
-          <p>Your request is processed in a settlement cycle.</p>
-        </div>
-        <Icon name="arrow" size={18} />
-        <div>
-          <span>03</span>
-          <strong>Claim</strong>
-          <p>Claim your shares, then track your position.</p>
-        </div>
+        <p className="vision-disclosure">
+          These categories describe the product vision. The current testnet
+          experience is limited to the stock basket and stablecoin LP shown
+          above.
+        </p>
+        <a className="text-link" href="#position">
+          Find your layer <Icon name="arrow" size={15} />
+        </a>
       </section>
     </>
   )
