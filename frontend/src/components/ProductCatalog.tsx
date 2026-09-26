@@ -27,9 +27,6 @@ export function ProductCatalog() {
             layer.
           </p>
         </div>
-        <Link className="text-link" href="/#tranches">
-          How tranches work <Icon name="arrow" size={14} />
-        </Link>
       </div>
       <div className="catalog-stats">
         <div>
@@ -182,7 +179,10 @@ export function ProductCatalog() {
               : 'Awaiting the first recorded settlement.'}{' '}
         APR targets are not guaranteed returns.
       </p>
-      <section className="catalog-guide">
+      <details className="catalog-guide desk-disclosure">
+        <summary>
+          New to structured yield? <Icon name="chevron" size={14} />
+        </summary>
         <span className="eyebrow">BEFORE YOU INVEST</span>
         <h2>Know the assets. Understand your layer.</h2>
         <div>
@@ -196,10 +196,7 @@ export function ProductCatalog() {
             <b>03</b> Prepare your wallet, then review your request.
           </p>
         </div>
-        <Link className="text-link" href="/#access">
-          See the access steps <Icon name="arrow" size={14} />
-        </Link>
-      </section>
+      </details>
     </div>
   )
 }

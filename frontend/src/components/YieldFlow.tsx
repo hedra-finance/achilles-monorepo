@@ -130,12 +130,11 @@ export function YieldFlow({
           </div>
           <div className="source-nodes">
             {SOURCES.map((source) => (
-              <a
+              <div
                 key={source.name}
                 className={
                   'source-node' + (!source.available ? ' planned' : '')
                 }
-                href={source.available ? '#strategy' : '#vision'}
               >
                 <span className="node-icon">
                   <Icon name={source.icon} size={20} />
@@ -147,13 +146,10 @@ export function YieldFlow({
                 <span className="node-tag">
                   {source.available ? `${source.weight}%` : 'VISION'}
                 </span>
-              </a>
+              </div>
             ))}
           </div>
           <p className="flow-footnote">Weights are configured targets.</p>
-          <a className="flow-vision-link" href="#vision">
-            Explore four more source categories in our vision →
-          </a>
         </div>
         <div className="flow-engine">
           <span className="flow-caption">

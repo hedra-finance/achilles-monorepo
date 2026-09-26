@@ -9,6 +9,7 @@ import './markets.css'
 import './landing.css'
 import './motion.css'
 import './decision-flow.css'
+import './dashboard.css'
 
 export const metadata: Metadata = {
   title: 'Achilles | Structured cross-chain yield',

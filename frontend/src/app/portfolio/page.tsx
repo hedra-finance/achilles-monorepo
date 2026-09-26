@@ -23,7 +23,9 @@ import {
 export default function PortfolioPage() {
   return (
     <PageMotion>
-      <PortfolioContent />
+      <div className="account-workspace">
+        <PortfolioContent />
+      </div>
     </PageMotion>
   )
 }
@@ -97,6 +99,11 @@ function PortfolioContent() {
       ({ t, pos }) =>
         !pos || PRODUCT.entryChains.includes(t.chainId) || hasPosition(pos)
     )
+    .toSorted(
+      (a, b) =>
+        Number(PRODUCT.entryChains.includes(b.t.chainId)) -
+        Number(PRODUCT.entryChains.includes(a.t.chainId))
+    )
   const total = rows.every((r) => r.value !== null)
     ? rows.reduce((a, r) => a + (r.value ?? 0n), 0n)
     : null
@@ -160,56 +167,10 @@ function PortfolioContent() {
                 </Link>
               </div>
             ))}
-          <p className="sub">
-            Access is checked per tranche. Claims are listed separately and
-            remain subject to the vault’s transfer rules.
-          </p>
         </div>
       </div>
-      <section
-        className="card portfolio-next"
-        aria-labelledby="portfolio-next-title"
-      >
-        <h3 id="portfolio-next-title">Your next action</h3>
-        <p className="sub">
-          Claims require a separate wallet transaction after settlement. Pending
-          requests continue independently.
-        </p>
-        <div className="grid grid-2">
-          {rows
-            .filter(({ t }) => PRODUCT.entryChains.includes(t.chainId))
-            .map(({ t, pos }) => (
-              <div className="position-action-card" key={t.index}>
-                <span className={`pill ${t.type.toLowerCase()}`}>{t.type}</span>
-                <div className="position-actions">
-                  {!pos ? (
-                    <span className="sub">
-                      Position unavailable. Retry account data above.
-                    </span>
-                  ) : (
-                    positionActions(pos, acct.data!.eligibility[t.index]).map(
-                      (action) => (
-                        <Link
-                          key={action.label}
-                          className={`btn ${action.kind === 'claim' ? 'primary' : 'secondary'}`}
-                          href={
-                            action.kind === 'track'
-                              ? '/activity'
-                              : ticketHref(t.type, action.mode)
-                          }
-                        >
-                          {action.label}
-                        </Link>
-                      )
-                    )
-                  )}
-                </div>
-              </div>
-            ))}
-        </div>
-      </section>
-      <div className="card" style={{ marginBottom: 16 }}>
-        <h3>Positions</h3>
+      <div className="card portfolio-positions">
+        <h3>Positions & actions</h3>
         <div className="table-scroll">
           <table>
             <thead>
@@ -220,6 +181,7 @@ function PortfolioContent() {
                 <th className="num">Value (USDC)</th>
                 <th>Pending</th>
                 <th>Claimable</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -228,7 +190,7 @@ function PortfolioContent() {
                   <tr key={t.index}>
                     <td>{t.type}</td>
                     <td>{chainLabel(t.chainId)}</td>
-                    <td colSpan={4} className="sub">
+                    <td colSpan={5} className="sub">
                       Position unavailable — balance not assumed to be zero
                     </td>
                   </tr>
@@ -274,6 +236,30 @@ function PortfolioContent() {
                         pos.redeem.claimable === 0n &&
                         '—'}
                     </td>
+                    <td>
+                      <div className="position-actions">
+                        {PRODUCT.entryChains.includes(t.chainId) ? (
+                          positionActions(
+                            pos,
+                            acct.data!.eligibility[t.index]
+                          ).map((action) => (
+                            <Link
+                              key={action.label}
+                              className={`btn sm ${action.kind === 'claim' ? 'primary' : 'secondary'}`}
+                              href={
+                                action.kind === 'track'
+                                  ? '/activity'
+                                  : ticketHref(t.type, action.mode)
+                              }
+                            >
+                              {action.label}
+                            </Link>
+                          ))
+                        ) : (
+                          <span className="sub">Source vault</span>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 )
               )}
@@ -282,13 +268,15 @@ function PortfolioContent() {
         </div>
         <p className="sub" style={{ marginBottom: 0 }}>
           Claimable amounts describe the original request, not the final payout.
-          Settlement determines the shares or USDC you receive. Use the actions
-          above to open the matching tranche; nothing is submitted until you
-          confirm in your wallet.
+          Settlement determines the shares or USDC you receive. Use each
+          position’s action to open the matching tranche; nothing is submitted
+          until you confirm in your wallet.
         </p>
       </div>
-      <div className="card">
-        <h3>Received</h3>
+      <details className="card received-history">
+        <summary>
+          Received claims <span>{recv.data?.length ?? '—'}</span>
+        </summary>
         {recv.isError ? (
           <QueryNotice
             title="Unable to load received claims"
@@ -342,7 +330,7 @@ function PortfolioContent() {
             </table>
           </div>
         )}
-      </div>
+      </details>
     </>
   )
 }

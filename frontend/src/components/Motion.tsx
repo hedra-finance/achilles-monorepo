@@ -53,6 +53,10 @@ export function MotionProvider({ children }: { children: ReactNode }) {
   )
 }
 
+export function useMotionPreference() {
+  return useContext(MotionContext)
+}
+
 export function MotionToggle() {
   const { paused, reduced, toggle } = useContext(MotionContext)
   return (

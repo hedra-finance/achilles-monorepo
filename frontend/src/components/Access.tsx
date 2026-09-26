@@ -16,9 +16,11 @@ import { PRODUCT } from '@/lib/product'
 import { erc20Abi } from '@/lib/abi'
 import { fmt, short } from '@/lib/math'
 import { Icon } from './Icon'
+import { HelpTip } from './HelpTip'
 
 export function Access({
   eligible,
+  compact = false,
   type,
   mode,
   shares,
@@ -26,6 +28,7 @@ export function Access({
   disabled = false
 }: {
   eligible: boolean | undefined
+  compact?: boolean
   type: 'Senior' | 'Junior'
   mode: 'invest' | 'redeem'
   shares?: bigint
@@ -135,8 +138,17 @@ export function Access({
       setBusy(null)
     }
   }
+  if (compact && !address)
+    return (
+      <p className="wallet-preflight-note">
+        Connect to check your balance and {type} access.
+      </p>
+    )
   return (
-    <details className="investment-access" open={done < steps.length}>
+    <details
+      className="investment-access"
+      open={compact ? undefined : done < steps.length}
+    >
       <summary>
         <span>
           <Icon name="shield" size={15} />
@@ -207,13 +219,12 @@ export function Access({
             {type === 'Senior' ? (
               <>
                 <p>
-                  World ID links one verified human to one wallet for Senior
-                  access. Achilles receives a verification proof, not your
-                  personal identity details.
-                </p>
-                <p className="market-disclosure">
-                  This prevents duplicate human registrations. It is not KYC,
-                  proof of investment eligibility, or a limit on deposit size.
+                  One human, one wallet.{' '}
+                  <HelpTip label="About World ID access">
+                    Achilles receives a verification proof, not your personal
+                    identity details. This prevents duplicate registrations; it
+                    is not KYC, investment eligibility, or a deposit cap.
+                  </HelpTip>
                 </p>
                 {worldIdConfigured() ? (
                   <button

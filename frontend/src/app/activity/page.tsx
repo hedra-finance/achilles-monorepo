@@ -21,7 +21,9 @@ const PHASE: Record<string, [string, string]> = {
 export default function ActivityPage() {
   return (
     <PageMotion>
-      <ActivityContent />
+      <div className="account-workspace">
+        <ActivityContent />
+      </div>
     </PageMotion>
   )
 }
@@ -93,77 +95,85 @@ function ActivityContent() {
     )
   const dec = p.decimals
   return (
-    <div className="grid">
+    <>
       {heading}
-      {act.data.map((a) => {
-        const t = p.tranches.find(
-          (x) => x.vault.toLowerCase() === a.vault.toLowerCase()
-        )
-        const [label, cls] = PHASE[a.phase] ?? ['Pending', '']
-        return (
-          <div className="card" key={a.requestId}>
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <div className="row">
-                <strong>
-                  {a.kind === 'deposit' ? 'Deposit' : 'Redeem'}{' '}
-                  {fmt(a.amount, dec)}{' '}
-                  {a.kind === 'deposit' ? 'USDC' : 'shares'}
-                </strong>
-                {t && (
-                  <span className={`pill ${t.type.toLowerCase()}`}>
-                    {t.type}
-                  </span>
-                )}
-                <span className="sub">{chainLabel(a.vaultChainId)}</span>
-              </div>
-              <div className="row">
-                <span className={`pill ${cls}`}>{label}</span>
-                {a.round && <span className="sub">settlement #{a.round}</span>}
-                <span className="mono muted">{short(a.requestId)}</span>
-              </div>
-            </div>
-            <div className="grid grid-2" style={{ marginTop: 10 }}>
-              <div>
-                <div className="sub">Request</div>
-                <Steps steps={a.steps} />
-              </div>
-              {a.legs.map((l) => (
-                <div key={l.chainId}>
-                  <div className="sub">
-                    Yield source · {chainLabel(l.chainId)}
-                  </div>
-                  <Steps steps={l.steps} />
+      <div className="request-list">
+        {act.data.map((a) => {
+          const t = p.tranches.find(
+            (x) => x.vault.toLowerCase() === a.vault.toLowerCase()
+          )
+          const [label, cls] = PHASE[a.phase] ?? ['Pending', '']
+          return (
+            <details className="card request-row" key={a.requestId}>
+              <summary className="request-summary">
+                <div className="row">
+                  <strong>
+                    {a.kind === 'deposit' ? 'Deposit' : 'Redeem'}{' '}
+                    {fmt(a.amount, dec)}{' '}
+                    {a.kind === 'deposit' ? 'USDC' : 'shares'}
+                  </strong>
+                  {t && (
+                    <span className={`pill ${t.type.toLowerCase()}`}>
+                      {t.type}
+                    </span>
+                  )}
+                  <span className="sub">{chainLabel(a.vaultChainId)}</span>
                 </div>
-              ))}
-              {a.settlement && (
+                <div className="row">
+                  <span className={`pill ${cls}`}>{label}</span>
+                  {a.round && (
+                    <span className="sub">settlement #{a.round}</span>
+                  )}
+                  <span className="mono muted">{short(a.requestId)}</span>
+                </div>
+              </summary>
+              <div
+                className="grid grid-2 request-detail"
+                style={{ marginTop: 10 }}
+              >
                 <div>
-                  <div className="sub">
-                    Settlement #{a.settlement.round} · {a.settlement.status}
-                  </div>
-                  <Steps steps={[a.settlement.started]} />
-                  {a.settlement.chains.map((c) => (
-                    <div key={c.chainId} style={{ marginTop: 6 }}>
-                      <div className="sub">{chainLabel(c.chainId)}</div>
-                      <Steps steps={c.steps} />
+                  <div className="sub">Request</div>
+                  <Steps steps={a.steps} />
+                </div>
+                {a.legs.map((l) => (
+                  <div key={l.chainId}>
+                    <div className="sub">
+                      Yield source · {chainLabel(l.chainId)}
                     </div>
-                  ))}
+                    <Steps steps={l.steps} />
+                  </div>
+                ))}
+                {a.settlement && (
+                  <div>
+                    <div className="sub">
+                      Settlement #{a.settlement.round} · {a.settlement.status}
+                    </div>
+                    <Steps steps={[a.settlement.started]} />
+                    {a.settlement.chains.map((c) => (
+                      <div key={c.chainId} style={{ marginTop: 6 }}>
+                        <div className="sub">{chainLabel(c.chainId)}</div>
+                        <Steps steps={c.steps} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {a.phase === 'receivable' && (
+                <div className="activity-next-action">
+                  <p className="sub">
+                    This request has settled. It may already have been claimed;
+                    your current vault balance determines what is still
+                    available.
+                  </p>
+                  <Link className="text-link" href="/portfolio">
+                    View available claims →
+                  </Link>
                 </div>
               )}
-            </div>
-            {a.phase === 'receivable' && (
-              <div className="activity-next-action">
-                <p className="sub">
-                  This request has settled. It may already have been claimed;
-                  your current vault balance determines what is still available.
-                </p>
-                <Link className="text-link" href="/portfolio">
-                  View available claims →
-                </Link>
-              </div>
-            )}
-          </div>
-        )
-      })}
-    </div>
+            </details>
+          )
+        })}
+      </div>
+    </>
   )
 }

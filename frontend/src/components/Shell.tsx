@@ -17,8 +17,6 @@ const LINKS = [
 const LANDING_LINKS = [
   ['#strategy', 'Assets'],
   ['#tranches', 'Tranches'],
-  ['#access', 'Access'],
-  ['#settlement', 'Settlement'],
   ['#faq', 'FAQ']
 ] as const
 
@@ -29,7 +27,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { address, isConnected } = useWalletAccount()
   const { open } = useAppKit()
   return (
-    <div className={`app-shell ir-shell ${landing ? 'landing-shell' : ''}`}>
+    <div
+      className={`app-shell ir-shell ${landing ? 'landing-shell' : 'dashboard-shell'}`}
+    >
       <a className="skip-link" href="#main">
         Skip to content
       </a>
@@ -120,36 +120,46 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <main id="main" className="ir-main">
         {children}
       </main>
-      <footer className="ir-footer site-footer">
-        <div>
-          <Link href="/" aria-label="Achilles home">
-            <Brand />
-          </Link>
-          <p>Know the risk. Choose your layer.</p>
-          <small>Experimental protocol · Testnet assets</small>
-          <MotionToggle />
-        </div>
-        <nav aria-label="Explore Achilles">
-          <strong>EXPLORE</strong>
-          <Link href="/products">Products</Link>
-          <Link href="/portfolio">Portfolio</Link>
-          <Link href="/activity">Activity</Link>
-        </nav>
-        <nav aria-label="Learn about Achilles">
-          <strong>UNDERSTAND</strong>
-          <Link href="/#tranches">Tranches</Link>
-          <Link href="/#access">Access</Link>
-          <Link href="/#faq">FAQ</Link>
-        </nav>
-        <div className="footer-signoff">
-          ACHILLES
+      {landing ? (
+        <footer className="ir-footer site-footer">
+          <div>
+            <Link href="/" aria-label="Achilles home">
+              <Brand />
+            </Link>
+            <p>Know the risk. Choose your layer.</p>
+            <small>Experimental protocol · Testnet assets</small>
+            <MotionToggle />
+          </div>
+          <nav aria-label="Explore Achilles">
+            <strong>EXPLORE</strong>
+            <Link href="/products">Products</Link>
+            <Link href="/portfolio">Portfolio</Link>
+            <Link href="/activity">Activity</Link>
+          </nav>
+          <nav aria-label="Learn about Achilles">
+            <strong>UNDERSTAND</strong>
+            <Link href="/#tranches">Tranches</Link>
+            <Link href="/#access">Access</Link>
+            <Link href="/#faq">FAQ</Link>
+          </nav>
+          <div className="footer-signoff">
+            ACHILLES
+            <span>
+              Structure any yield.
+              <br />
+              On any chain.
+            </span>
+          </div>
+        </footer>
+      ) : (
+        <footer className="app-status-footer">
           <span>
-            Structure any yield.
-            <br />
-            On any chain.
+            <span className="status-dot amber" /> Experimental protocol ·
+            Testnet assets
           </span>
-        </div>
-      </footer>
+          <MotionToggle />
+        </footer>
+      )}
     </div>
   )
 }

@@ -47,7 +47,6 @@ const QUESTIONS = [
 export function Landing() {
   const [selected, setSelected] = useState<RiskLayer>('Senior')
   const s = useStrategySnapshot()
-  const layerHref = `/products/stocks-stable?tranche=${selected.toLowerCase()}`
   return (
     <div className="landing-page">
       <section className="ir-hero landing-hero" aria-labelledby="hero-title">
@@ -94,9 +93,6 @@ export function Landing() {
             <span className="status-dot amber" /> SEPOLIA TESTNET <i /> USDC
             SETTLEMENT <i /> TWO RISK LAYERS
           </span>
-          <Link className="text-link" href={layerHref}>
-            Explore {selected} <Icon name="arrow" size={15} />
-          </Link>
         </div>
       </section>
 
@@ -143,9 +139,6 @@ export function Landing() {
                 </span>
               ))}
             </div>
-            <Link className="text-link" href="/products/stocks-stable#strategy">
-              Explore the basket <Icon name="arrow" size={15} />
-            </Link>
           </article>
           <article className="underlying-card liquidity">
             <div className="underlying-top">
@@ -169,9 +162,6 @@ export function Landing() {
               <i />
               <span>USDT</span>
             </div>
-            <Link className="text-link" href="/products/stocks-stable#strategy">
-              Inspect the liquidity source <Icon name="arrow" size={15} />
-            </Link>
           </article>
         </div>
         <p className="landing-note">
@@ -255,9 +245,6 @@ export function Landing() {
               Switch between yield and loss to understand the order. Neither
               layer guarantees capital or returns.
             </p>
-            <Link className="text-link" href={layerHref}>
-              Open {selected} in the app <Icon name="arrow" size={15} />
-            </Link>
           </div>
           <RiskExplainer selected={selected} />
         </div>
@@ -313,9 +300,6 @@ export function Landing() {
             </li>
           ))}
         </ol>
-        <Link className="btn" href={`${layerHref}#invest`}>
-          Prepare your wallet <Icon name="arrow" size={15} />
-        </Link>
       </section>
 
       <section
@@ -405,12 +389,6 @@ export function Landing() {
                   : 'Values from finalized settlement records.'}{' '}
               No instant withdrawal: request, settle, then claim.
             </p>
-            <Link
-              className="text-link"
-              href="/products/stocks-stable#settlements"
-            >
-              View settlement history <Icon name="arrow" size={15} />
-            </Link>
           </div>
         </div>
       </section>
@@ -478,9 +456,6 @@ export function Landing() {
         <div className="landing-actions">
           <Link className="btn primary" href="/products">
             Launch app <Icon name="arrow" size={16} />
-          </Link>
-          <Link className="btn" href={layerHref}>
-            Explore {selected}
           </Link>
         </div>
         <small>

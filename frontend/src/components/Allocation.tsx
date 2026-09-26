@@ -18,6 +18,7 @@ import {
 import { PRODUCT } from '@/lib/product'
 import { addressUrl } from '@/lib/chains'
 import { Icon } from './Icon'
+import { HelpTip } from './HelpTip'
 import { StockLogo } from './StockLogo'
 import { DistributionChart } from './DistributionChart'
 import { StockPricesChart } from './StockPricesChart'
@@ -26,12 +27,14 @@ import { stockDisplay } from '@/lib/stock-display'
 
 export function Allocation({
   product,
+  compact = false,
   sources,
   sourcesUnavailable,
   sourcesLoading = false,
   history
 }: {
   product?: Product
+  compact?: boolean
   sources: YieldSource[]
   sourcesUnavailable: boolean
   sourcesLoading?: boolean
@@ -40,7 +43,7 @@ export function Allocation({
   const basket = useBasket()
   const lp = useLp()
   const [view, setView] = useState<'allocation' | 'holdings' | 'prices'>(
-    'allocation'
+    compact ? 'holdings' : 'allocation'
   )
   const [sourceTarget, setSourceTarget] = useState(false)
   const [holdingsTarget, setHoldingsTarget] = useState(false)
@@ -101,7 +104,7 @@ export function Allocation({
   return (
     <section
       id="strategy"
-      className="market-assets card"
+      className={`market-assets card ${compact ? 'compact-assets' : ''}`}
       aria-labelledby="assets-title"
     >
       <div className="desk-heading">
@@ -202,7 +205,7 @@ export function Allocation({
         update="panel-swap"
         default="none"
       >
-        <div className="asset-view-content">
+        <div className={`asset-view-content view-${view}`}>
           {view !== 'prices' && (
             <div className="distribution-controls">
               <span>
@@ -411,7 +414,8 @@ export function Allocation({
                               <td className="num">
                                 <span>{pct(actual, 1)}</span>
                                 <small>
-                                  target {pct(r.weightBps / 100, 1)}
+                                  {compact ? '/ ' : 'target '}
+                                  {pct(r.weightBps / 100, 1)}
                                 </small>
                                 <div className="weight-track">
                                   <i
@@ -511,11 +515,12 @@ export function Allocation({
                 : `Snapshot ${updated} · refreshes every 60s`}
         </span>
       </div>
-      <p className="market-disclosure">
-        Pool prices are testnet quotes, not exchange stock prices. “Vs.
-        settlement” compares a current pool quote with the last available
-        recorded valuation; it is not a 24-hour return. Unavailable data stays
-        blank.
+      <p className="market-disclosure compact-price-note">
+        Testnet pool quotes · not exchange stock prices.{' '}
+        <HelpTip label="About price data">
+          Vs. settlement compares a current pool quote with the last recorded
+          valuation, not a 24-hour return. Unavailable values stay blank.
+        </HelpTip>
       </p>
       <p className="stock-logo-attribution">
         Company logos via{' '}
@@ -524,7 +529,7 @@ export function Allocation({
         </a>{' '}
         · price data from testnet pools and on-chain records.
       </p>
-      <details className="liquidity-panel" open>
+      <details className="liquidity-panel" open={compact ? undefined : true}>
         <summary>
           <span className="source-badge blue">◇</span>
           <span>

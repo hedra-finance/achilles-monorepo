@@ -59,7 +59,7 @@ For Vercel, set the project Root Directory to `frontend`. The pnpm workspace pac
 
 This design variant uses a cinematic midnight coastline, luminous source connections and layered glass tranche controls. The background is an AI-generated environment; the approved Achilles logo is preserved separately.
 
-The flow is **understand the sources → choose a risk layer → request an investment → follow settlement → claim**. Hero controls, risk-profile controls and the investment ticket share the selected tranche. The yield/loss explainer shows allocation priority without hypothetical financial returns. Mobile offers a direct jump to the investment section and persistent bottom navigation.
+The flow is **understand the sources → choose a risk layer → request an investment → follow settlement → claim**. The yield/loss explainer shows allocation priority without hypothetical financial returns. Mobile separates Market and Trade panels and retains persistent bottom navigation.
 
 Stocks and stablecoin liquidity are the configured testnet sources. Lending, bonds, real-world assets and custom strategies are explicitly marked as product vision, not available integrations. The new presentation reuses the existing wallet, transaction and API implementation.
 
@@ -67,7 +67,9 @@ The Webpack development path is available via `pnpm --filter achilles-web dev --
 
 ## Market workspace
 
-The product detail page places stock prices and holdings beside a guided investment ticket. Senior/Junior selection drives the Sepolia tranche metrics, performance chart and transaction ticket together. Other networks are shown as sources, not additional deposit entry points. The public landing page remains a separate introduction; the brand link always returns home, and the product breadcrumb returns to the catalog.
+The product detail page uses a viewport-sized desktop workspace: strategy metrics above research tabs and a persistent trade panel. Only panel content scrolls. Senior/Junior selection drives the Sepolia tranche metrics, performance chart and transaction ticket together. Research tabs preserve transaction input. Other networks are shown as sources, not additional deposit entry points. The public landing page remains a separate introduction; the brand link returns home and primary navigation opens the catalog, portfolio and activity.
+
+Wallet prerequisites expand inside the trade panel. Secondary explanations use keyboard-accessible tooltips, while capital risk and the request → settlement → claim sequence stay visible. Portfolio actions sit beside each position; received claims and activity traces expand on demand. Small screens switch between market research and trading rather than stacking both.
 
 - **Assets & prices:** searchable stock basket, current pool quotes, adapter token balances, current marked values, actual versus target basket weights, token/pool details and snapshot block. Source data loads independently of the Hub.
 - **Allocation and holdings:** source-principal donut and stock-value pie with separate Actual/Target controls. Zero holdings remain empty; incomplete data is never normalized into a full portfolio. Company logos load from TradingView with a text fallback.
@@ -81,7 +83,7 @@ The gas helper accepts investor permission on either configured Sepolia tranche.
 
 ## Motion and loading
 
-The landing introduces sources, the structuring layer and tranches in sequence, with a slow light current along available source connections. The central logo remains stationary; a short, masked metallic reflection repeats with a quiet pause and responds to a mouse pointer. Sections reveal once as they enter view. Ambient effects pause when their visual is offscreen or the tab is hidden.
+The landing introduces sources, the structuring layer and tranches in sequence, with a slow light current along available source connections. The central logo uses an actual eight-second, silent video loop with WebM and MP4 sources. The emblem stays anchored while light crosses its surface and layered edges. The original image is the loading, playback-error and reduced-motion fallback. Sections reveal once as they enter view. The video and ambient effects pause offscreen, when the tab is hidden, or through the motion control.
 
 React/Next view transitions connect pages and crossfade the Allocation, Holdings and Prices panels without replacing investment form state. Navigation uses the router's pending state; route skeletons and initial data placeholders retain the surrounding layout. Background refetches keep existing values visible. Unsupported browsers retain normal navigation with a short entry fade.
 

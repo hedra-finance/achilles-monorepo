@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MotionLink as Link } from '@/components/MotionLink'
 import { formatUnits, type Hex } from 'viem'
 import { useConfig, useSwitchChain } from 'wagmi'
@@ -28,12 +28,14 @@ import {
 import { LoadingValue } from './Skeleton'
 import { Icon } from './Icon'
 import { Access } from './Access'
+import { HelpTip } from './HelpTip'
 
 type Mode = 'invest' | 'redeem'
 type Context = Parameters<typeof deposit>[0]
 const pendingKey = `achilles:pending:${PRODUCT.idHex}`
 export function Ticket({
   product,
+  compact = false,
   initialMode = 'invest',
   loading = false,
   last,
@@ -42,6 +44,7 @@ export function Ticket({
   onBusyChange
 }: {
   product?: Product
+  compact?: boolean
   initialMode?: Mode
   loading?: boolean
   last: Settlement | null
@@ -129,6 +132,13 @@ export function Ticket({
   const messageUrl = msg?.hash && msg.chain ? txUrl(msg.chain, msg.hash) : null
   const reviewKey = `${address}:${type}:${chain}:${mode}:${amt}`
   const reviewing = reviewed === reviewKey
+  const reviewPanel = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!compact || !reviewing || !ready) return
+    const panel = reviewPanel.current
+    panel?.focus({ preventScroll: true })
+    panel?.scrollIntoView({ block: 'end', behavior: 'instant' })
+  }, [compact, reviewing, ready])
 
   function changeMode(value: Mode) {
     setMode(value)
@@ -262,10 +272,14 @@ export function Ticket({
                           ? 'Confirm redemption request'
                           : 'Review redemption'
   return (
-    <section className="card ticket" id="invest" aria-label="Investment ticket">
+    <section
+      className={`card ticket ${compact ? 'compact-ticket' : ''}`}
+      id="invest"
+      aria-label="Investment ticket"
+    >
       <div className="ticket-header">
         <div className="ticket-heading">
-          <h2>Your next move</h2>
+          <h2>{compact ? 'Trade' : 'Your next move'}</h2>
           <Icon name="layers" size={18} />
         </div>
         <div className="seg" role="group" aria-label="Transaction type">
@@ -363,6 +377,7 @@ export function Ticket({
             </div>
           )}
         <Access
+          compact={compact}
           key={`${address ?? 'disconnected'}-${type}-${mode}`}
           onChooseJunior={() => {
             onTypeChange('Junior')
@@ -374,61 +389,76 @@ export function Ticket({
           shares={pos?.shares}
           disabled={locked}
         />
-        <div className="field-label">Choose your tranche</div>
-        <div className="tranche-toggle" role="group" aria-label="Tranche">
-          <button
-            disabled={locked}
-            aria-pressed={type === 'Senior'}
-            className={type === 'Senior' ? 'on' : ''}
-            onClick={() => {
-              onTypeChange('Senior')
-              setMsg(null)
-            }}
-          >
-            <Icon name="shield" size={15} />
-            Senior
-          </button>
-          <button
-            disabled={locked}
-            aria-pressed={type === 'Junior'}
-            className={'junior' + (type === 'Junior' ? ' on' : '')}
-            onClick={() => {
-              onTypeChange('Junior')
-              setMsg(null)
-            }}
-          >
-            <Icon name="chart" size={15} />
-            Junior
-          </button>
-        </div>
-        <p className="tranche-description">
-          {type === 'Senior'
-            ? 'Priority yield. Junior capital absorbs losses before Senior.'
-            : 'Residual yield. Junior capital takes losses before Senior.'}
-        </p>
-        <div className="field-label">
-          <label htmlFor="deposit-network">Network</label>
-        </div>
-        <div className="network-select">
-          <span className="network-coin">◇</span>
-          <select
-            id="deposit-network"
-            value={chain}
-            disabled={locked}
-            onChange={(e) => {
-              setChain(Number(e.target.value))
-              setAmt('')
-              setMsg(null)
-            }}
-          >
-            {networks.map((c) => (
-              <option key={c} value={c}>
-                {chainLabel(c)}
-              </option>
-            ))}
-          </select>
-          <span className="pill">Testnet</span>
-        </div>
+        {!compact && (
+          <>
+            <div className="field-label">Choose your tranche</div>
+            <div className="tranche-toggle" role="group" aria-label="Tranche">
+              <button
+                disabled={locked}
+                aria-pressed={type === 'Senior'}
+                className={type === 'Senior' ? 'on' : ''}
+                onClick={() => {
+                  onTypeChange('Senior')
+                  setMsg(null)
+                }}
+              >
+                <Icon name="shield" size={15} />
+                Senior
+              </button>
+              <button
+                disabled={locked}
+                aria-pressed={type === 'Junior'}
+                className={'junior' + (type === 'Junior' ? ' on' : '')}
+                onClick={() => {
+                  onTypeChange('Junior')
+                  setMsg(null)
+                }}
+              >
+                <Icon name="chart" size={15} />
+                Junior
+              </button>
+            </div>
+            <p className="tranche-description">
+              {type === 'Senior'
+                ? 'Priority yield. Junior capital absorbs losses before Senior.'
+                : 'Residual yield. Junior capital takes losses before Senior.'}
+            </p>
+          </>
+        )}
+        {(!compact || networks.length > 1) && (
+          <>
+            <div className="field-label">
+              <label htmlFor="deposit-network">Network</label>
+            </div>
+            <div className="network-select">
+              <span className="network-coin">◇</span>
+              <select
+                id="deposit-network"
+                value={chain}
+                disabled={locked}
+                onChange={(e) => {
+                  setChain(Number(e.target.value))
+                  setAmt('')
+                  setMsg(null)
+                }}
+              >
+                {networks.map((c) => (
+                  <option key={c} value={c}>
+                    {chainLabel(c)}
+                  </option>
+                ))}
+              </select>
+              <span className="pill">Testnet</span>
+            </div>
+          </>
+        )}
+        {compact && networks.length === 1 && (
+          <div className="ticket-network-line">
+            <span className="status-dot amber" />
+            {chainLabel(chain)}
+            <span>Testnet</span>
+          </div>
+        )}
         <div className="field-label">
           <label htmlFor="transaction-amount">
             {mode === 'invest' ? 'Deposit amount' : 'Shares to redeem'}
@@ -473,7 +503,7 @@ export function Ticket({
           role="group"
           aria-label="Use a percentage of your balance"
         >
-          {[25, 50, 75, 100].map((percent) => (
+          {(compact ? [25, 50, 75] : [25, 50, 75, 100]).map((percent) => (
             <button
               key={percent}
               disabled={locked || balance == null}
@@ -499,12 +529,19 @@ export function Ticket({
           )}
         </div>
         <div className="estimate-row">
-          <span>You receive (estimated)</span>
+          <span>
+            Estimated {mode === 'invest' ? 'shares' : 'USDC'}{' '}
+            <HelpTip label="About the payout estimate">
+              Based on the last settlement price. Your final amount is
+              determined at settlement; a separate claim transaction is
+              required.
+            </HelpTip>
+          </span>
           <strong>
             {fmt(est, dec, 4)} {mode === 'invest' ? 'shares' : 'USDC'}
           </strong>
         </div>
-        <p className="estimate-note" id="estimate-help">
+        <p className={compact ? 'sr-only' : 'estimate-note'} id="estimate-help">
           Based on the last settlement price. Final amounts are set at
           settlement.
         </p>
@@ -516,7 +553,12 @@ export function Ticket({
           </strong>
         </div>
         {reviewing && ready && (
-          <div className="request-review" role="status">
+          <div
+            className="request-review"
+            role="status"
+            ref={reviewPanel}
+            tabIndex={-1}
+          >
             <strong>
               Review your {mode === 'invest' ? 'deposit' : 'redemption'}
             </strong>
@@ -540,36 +582,38 @@ export function Ticket({
             </button>
           </div>
         )}
-        {!address ? (
-          <button className="btn primary full" onClick={() => open()}>
-            <Icon name="wallet" size={16} />
-            Connect wallet
-          </button>
-        ) : (
-          <button
-            className="btn primary full"
-            aria-busy={busy}
-            disabled={locked || !ready}
-            onClick={() => {
-              if (!reviewing) {
-                setMsg(null)
-                setReviewed(reviewKey)
-              } else if (tranche && raw != null) {
-                void run(
-                  (ctx) =>
-                    mode === 'invest'
-                      ? deposit(ctx, tranche, raw)
-                      : redeem(ctx, tranche, raw),
-                  mode === 'invest' ? 'Deposit request' : 'Redemption request'
-                )
-              }
-            }}
-          >
-            {busy && <span className="busy-spinner" aria-hidden="true" />}
-            {buttonText}
-            {ready && !busy && <Icon name="arrow" size={16} />}
-          </button>
-        )}
+        <div className="ticket-primary-action">
+          {!address ? (
+            <button className="btn primary full" onClick={() => open()}>
+              <Icon name="wallet" size={16} />
+              Connect wallet
+            </button>
+          ) : (
+            <button
+              className="btn primary full"
+              aria-busy={busy}
+              disabled={locked || !ready}
+              onClick={() => {
+                if (!reviewing) {
+                  setMsg(null)
+                  setReviewed(reviewKey)
+                } else if (tranche && raw != null) {
+                  void run(
+                    (ctx) =>
+                      mode === 'invest'
+                        ? deposit(ctx, tranche, raw)
+                        : redeem(ctx, tranche, raw),
+                    mode === 'invest' ? 'Deposit request' : 'Redemption request'
+                  )
+                }
+              }}
+            >
+              {busy && <span className="busy-spinner" aria-hidden="true" />}
+              {buttonText}
+              {ready && !busy && <Icon name="arrow" size={16} />}
+            </button>
+          )}
+        </div>
         {(acct.isError ||
           (acct.data &&
             tranche &&
