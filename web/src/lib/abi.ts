@@ -94,6 +94,13 @@ export const erc20Abi = parseAbi([
   'function approve(address spender, uint256 amount) returns (bool)',
 ])
 
+/** Testnet asset: the faucet route mints it, so keep mint out of the ABI the UI reads with. */
+export const mintableErc20Abi = parseAbi([
+  'function decimals() view returns (uint8)',
+  'function balanceOf(address) view returns (uint256)',
+  'function mint(address to, uint256 amount)',
+])
+
 export const basketAdapterAbi = parseAbi([
   'function basketCount() view returns (uint256)',
   'function basket(uint256) view returns (address token, address pool, uint16 weightBps, uint24 fee)',
@@ -113,3 +120,13 @@ export const uniV2PoolAbi = parseAbi([
   'function balanceOf(address) view returns (uint256)',
 ])
 export const adapterNameAbi = parseAbi(['function name() view returns (string)'])
+
+export const humanRegistryAbi = parseAbi([
+  'function claim(uint256 nullifierHash, address wallet)',
+  'function isVerified(address) view returns (bool)',
+  'function nullifierOf(address) view returns (uint256)',
+  'error HumanAlreadyClaimed(address existingWallet)',
+  'error WalletAlreadyClaimed(uint256 existingNullifier)',
+  'error NotVerifier()',
+  'error ZeroValue()',
+])
