@@ -148,7 +148,9 @@
    "factory": "0xF62c03E08ada871A0bEb309762E260a7a6a880E6",
    "router02": "0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3"
   },
-  "humanRegistry": "0xB4926251b1054Bb6b313dC344978cf777080cc3c"
+  "humanRegistry": "0xB4926251b1054Bb6b313dC344978cf777080cc3c",
+  "inventoryDesk": "0x55b57a7a0F41D668c584b2246d373B639084EAeD",
+  "_inventoryNote": "Par-exchange desk for StablePoolSource: supplies the missing leg of an entry one for one instead of buying it from the pool. Equal amounts both ways, so neither side gains or loses; it must approve the adapter to spend its counter token, and revoking that allowance disables it."
  },
  "activatedAt": "2026-09-26T07:03:13.919Z"
 }
