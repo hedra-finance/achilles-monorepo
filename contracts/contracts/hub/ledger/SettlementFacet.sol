@@ -23,6 +23,10 @@ interface IHubManagerCash {
 /// @notice Settlement facet of the HubLedger diamond. State is shared through LedgerStorage.
 contract SettlementFacet is LedgerBase {
     uint256 internal constant SETTLE_CHUNK = 2; // max SettleItems per message (keeps the fee envelope within the bridge limit)
+    /// @dev How long a collection may stay open before tryUpdateNAV treats it as dead and reopens it.
+    ///      Observed healthy rounds close in about two minutes; this is several times that, so it can only
+    ///      fire on a round that lost a message.
+    uint256 internal constant STALE_COLLECT = 5 minutes;
     struct ApprovalBuf {
         ISettlementLedger.InvestmentApprovalInput[] items; uint256 n;   // pallet batch record
         ApprovedItem[] deps; uint256 nd;              // DepositsApproved event
@@ -31,8 +35,20 @@ contract SettlementFacet is LedgerBase {
     }
 
     /// @notice Start a settlement round: snapshot the hub NAV and ask every spoke for theirs.
+    ///         Permissionless — the keeper calls it on the product's cadence.
+    /// @dev    A round that has been open longer than STALE_COLLECT is abandoned and reopened instead of
+    ///         refused. A collection waits on bridge messages, and the relayer drops one often enough that
+    ///         "collecting forever" was the normal failure: the keeper skips every cycle, settlement stops
+    ///         at whatever id it reached, and only an owner forceUpdateNAV moved it again. A healthy round
+    ///         settles in about two minutes, so the threshold is far above anything legitimate, and the
+    ///         restart is the same one forceUpdateNAV performs — safe now that a reopened round clears the
+    ///         valuation buffer it inherits.
     function tryUpdateNAV() external nonReentrant {
-        if (_s().collecting) revert AlreadyCollecting();
+        if (_s().collecting) {
+            if (block.timestamp < uint256(_s().collectStartedAt) + STALE_COLLECT) revert AlreadyCollecting();
+            _s().collecting = false;
+            emit CollectAborted(_s().settlementId + 1); // the round being abandoned, same label the retry will use
+        }
         _startCollect();
     }
     /// @notice Force a new round (owner) — resets a collection stuck on a lost response and starts again
@@ -43,6 +59,7 @@ contract SettlementFacet is LedgerBase {
     }
     function _startCollect() internal {
         _s().collecting = true;
+        _s().collectStartedAt = uint64(block.timestamp);
         // Products without a hub allocator (spoke-only capital) skip every hub term — the router's
         // sweepPayout/_hubAdapterAddr revert when unregistered, so the call itself must be avoided.
         if (_adapterOfChain(_hubChainId()) != address(0)) _s().payoutCollected += _s().orchestrator.sweepPayout(_s().productId); // collect ready hub ASYNC payout tickets
@@ -103,8 +120,12 @@ contract SettlementFacet is LedgerBase {
         for (uint256 i = 0; i < nFin; i++) finalizeChainIds[i] = finTmp[i];
     }
     function onNavResponse(uint64 srcChain, uint256 attachedAmount, bytes calldata message) external onlyOrchestrator nonReentrant {
-        if (!_s().collecting) revert NotCollecting();
         WireCodec.Envelope memory pl = WireCodec.decode(message); // productId was consumed by the router for routing
+        // A response can outlive its round: the round settled without it, or tryUpdateNAV abandoned a round
+        // whose messages the relayer had dropped and the relayer delivered them afterwards. Reverting here
+        // would fail the bridge delivery itself and strand the assets riding along, so a late response is
+        // treated exactly like one for a different round — its proceeds are booked, its NAV ignored.
+        if (!_s().collecting) { _s().payoutCollected += pl.aux; return; }
         uint256 chainNav = pl.amount;
         attachedAmount; // the fee sponsor covers any gap between declared and received; accounting uses the declared value
         // Attached redemption proceeds are always booked on physical arrival (even for a late response the

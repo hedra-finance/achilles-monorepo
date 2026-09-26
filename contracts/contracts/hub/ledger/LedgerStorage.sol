@@ -72,6 +72,13 @@ library LedgerStorage {
         //    received is reported by the spoke in its NAV response. sent − received = in-transit balance.
         mapping(uint64 => uint256) supplySentCum;
         mapping(uint64 => uint256) supplyRecvCum;
+
+        // ── Stall recovery ──
+        //    When the current collection opened. A round waits on messages that the bridge relayer can
+        //    silently drop, and nothing else bounds that wait: collecting stays true and every later
+        //    tryUpdateNAV is refused, so settlement stops until a human intervenes. Stamping the start
+        //    lets tryUpdateNAV abandon a round that has clearly died.
+        uint64 collectStartedAt;
     }
 
     function layout() internal pure returns (Layout storage s) {
