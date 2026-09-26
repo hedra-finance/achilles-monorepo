@@ -45,7 +45,7 @@ export function Access({
   const { signMessageAsync } = useSignMessage()
   const { open } = useAppKit()
   const qc = useQueryClient()
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState('ETHGLOBAL')
   const [worldContext, setWorldContext] = useState<WorldContext | null>(null)
   const pendingKey = `achilles:access:${PRODUCT.idHex}:${address?.toLowerCase()}:${type}`
   const [pendingSince, setPendingSince] = useState<number | null>(null)
