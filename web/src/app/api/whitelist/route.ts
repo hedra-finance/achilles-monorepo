@@ -1,147 +1,189 @@
 import { NextResponse } from 'next/server'
-import type { Address } from 'viem'
+import { getAddress, type Address } from 'viem'
+import { hashSignal } from '@worldcoin/idkit-core/hashing'
 import { opsWallet, toAddress } from '../_ops'
 import { hubClient, client } from '@/lib/chains'
 import { PRODUCT } from '@/lib/product'
 import { PRECOMPILE, permissionsAbi, humanRegistryAbi } from '@/lib/abi'
-import { WORLD_ID } from '@/lib/worldid'
-import { hashSignal } from '@worldcoin/idkit-core/hashing'
-import { getAddress } from 'viem'
+import { WORLD_ID, worldIdConfigured } from '@/lib/worldid'
+import {
+  isRecord,
+  validateHumanProof,
+  verifiedHumanNullifier
+} from '@/lib/human-proof'
 
-/**
- * What `POST /api/v4/verify/{rp_id}` answers with. The nullifier is `nullifier`, not the flat
- * `nullifier_hash` of the older Developer Portal v2 endpoint, and it is repeated per credential
- * under `results`. A reused nullifier still verifies — the reply only notes it in `message` — so
- * uniqueness is ours to enforce, which is what the registry is for.
- */
-type VerifyReply = {
-  success?: boolean
-  nullifier?: string
-  environment?: string
-  protocol_version?: string
-  results?: { identifier: string; success: boolean; nullifier: string }[]
-}
-
-/** The one field we read from the proof itself — see the signal check below for why that is sound. */
-type ProofResult = { responses?: { identifier: string; signal_hash?: string }[] }
-
-/**
- * Grants a wallet the right to hold this product's ERC-1404 shares, recorded on the hub permissions
- * precompile (0x202) and relayed from there to each spoke.
- *
- * Two tranches, two bars, because they are not equally scarce:
- *   Senior — takes a fixed rate ahead of Junior, so its capacity is limited and worth farming with
- *            many wallets. Gated on World ID Proof of Human: one person, one Senior allocation. The
- *            proof is verified against the World ID protocol and only the nullifier is recorded, so
- *            we learn nothing about who the person is, just that we have not seen them before.
- *   Junior — absorbs losses first and has no capacity limit, so there is nothing to farm. An invite
- *            code is enough, and it stays open to anyone who cannot or will not verify.
- */
-/**
- * Two on-chain writes on two chains, so this is the slowest route in the app. On a serverless host the
- * default function timeout is far below what a Sepolia receipt takes; 60s is the ceiling that matters.
- */
 export const maxDuration = 60
+const error = (message: string, status: number) =>
+  NextResponse.json({ error: message }, { status })
 
+/** Senior uses World ID; an invite grants Junior only. No public fallback invite code. */
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}))
-  const { address: raw, tranche } = body as { address?: string; tranche?: 'senior' | 'junior' }
-  const address = toAddress(raw)
-  if (!address) return NextResponse.json({ error: 'bad address' }, { status: 400 })
-
-  const vaults = PRODUCT.vaults[PRODUCT.sepolia.chainId]
-  const vault = tranche === 'senior' ? vaults.sr : vaults.jr
-
-  if (tranche === 'senior') {
-    const gate = await verifyHuman(body, address)
-    if ('error' in gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
-  } else if (body.code !== (process.env.INVITE_CODE ?? 'ETHGLOBAL')) {
-    return NextResponse.json({ error: 'wrong invite code' }, { status: 403 })
+  const body: unknown = await req.json().catch(() => null)
+  if (!isRecord(body)) return error('Invalid request.', 400)
+  const address = toAddress(body.address)
+  const tranche = body.tranche
+  if (!address || (tranche !== 'senior' && tranche !== 'junior'))
+    return error('Select a valid wallet and tranche.', 400)
+  if (
+    !process.env.OPS_PRIVATE_KEY ||
+    !process.env.NEXT_PUBLIC_HUB_RPC?.trim()
+  ) {
+    return error(
+      'Testnet access is being configured. Please try again later.',
+      503
+    )
   }
-
-  const granted = await grant(address, vault)
-  // `granted` is a hash, not a confirmation: the client polls its own eligibility anyway, so waiting
-  // here would only add a second chain's block time to a request already bounded by the first.
-  return NextResponse.json({ ok: true, tranche: tranche ?? 'junior', granted, pending: !!granted })
+  try {
+    if (tranche === 'senior') {
+      const rejected = await verifyHuman(body.proof, address)
+      if (rejected) return error(rejected.message, rejected.status)
+    } else {
+      const expected = process.env.INVITE_CODE?.trim()
+      if (!expected)
+        return error(
+          'Junior access is being configured. Please try again later.',
+          503
+        )
+      if (typeof body.code !== 'string' || body.code.trim() !== expected)
+        return error('The invite code is incorrect.', 403)
+    }
+    const vaults = PRODUCT.vaults[PRODUCT.sepolia.chainId]
+    const granted = await grant(
+      address,
+      tranche === 'senior' ? vaults.sr : vaults.jr
+    )
+    return NextResponse.json({
+      ok: true,
+      tranche,
+      granted,
+      pending: granted !== null
+    })
+  } catch {
+    return error(
+      'Access could not be confirmed. Check the current permission state and retry; a completed verification can be resumed.',
+      502
+    )
+  }
 }
 
-/** Verifies the IDKit proof with World, then binds the nullifier to this wallet on-chain. */
 async function verifyHuman(
-  body: Record<string, unknown>,
-  address: Address,
-): Promise<{ nullifierHash: bigint } | { error: string; status: number }> {
-  if (!process.env.RP_SIGNING_KEY || !WORLD_ID.rpId) return { error: 'World ID is not configured', status: 503 }
-  if (!body.proof) return { error: 'missing proof', status: 400 }
-
-  const res = await fetch(WORLD_ID.verifyUrl(WORLD_ID.rpId), {
+  proof: unknown,
+  address: Address
+): Promise<{ message: string; status: number } | null> {
+  if (
+    !process.env.RP_SIGNING_KEY ||
+    !worldIdConfigured() ||
+    !PRODUCT.sepolia.humanRegistry
+  ) {
+    return {
+      message: 'World ID access is not configured on this deployment.',
+      status: 503
+    }
+  }
+  const policy = {
+    action: WORLD_ID.action,
+    environment: WORLD_ID.environment,
+    signalHash: hashSignal(getAddress(address))
+  }
+  const invalid = validateHumanProof(proof, policy)
+  if (invalid) return { message: invalid, status: 400 }
+  const response = await fetch(WORLD_ID.verifyUrl(WORLD_ID.rpId), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body.proof),
+    body: JSON.stringify(proof),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(8_000)
   })
-  const raw_ = await res.text()
-  let out: Record<string, unknown> = {}
-  try { out = JSON.parse(raw_) } catch { /* non-JSON body is reported below */ }
-  if (process.env.NODE_ENV !== 'production') console.log('[worldid] verify', res.status, raw_.slice(0, 600))
-  if (!res.ok) return { error: String(out?.detail ?? out?.error ?? 'verification failed'), status: 403 }
+  if (!response.ok)
+    return {
+      message:
+        'World ID could not verify this request. Please try a new verification.',
+      status: response.status >= 500 ? 502 : 403
+    }
+  const nullifier = verifiedHumanNullifier(
+    await response.json().catch(() => null),
+    proof,
+    policy
+  )
+  if (nullifier === null)
+    return {
+      message:
+        'World ID did not confirm the required human credential for this action.',
+      status: 403
+    }
 
-  // Everything below is read from the verify reply, never from the proof the browser handed us:
-  // the reply is what World attests to, the proof is just the input we asked it to check.
-  const reply = out as VerifyReply
-  // A staging proof verifying against a production app (or the reverse) would otherwise pass silently.
-  if (reply.environment && reply.environment !== WORLD_ID.environment) {
-    return { error: `wrong World ID environment: ${reply.environment}`, status: 403 }
-  }
-  const results = reply.results ?? []
-  // Prefer the Proof of Human credential; a single-credential request only ever returns that one.
-  const human = results.find((r) => r.identifier === 'proof_of_human' && r.success)
-  const raw = human?.nullifier ?? reply.nullifier
-  if (!raw) {
-    return { error: `verification returned no nullifier (credentials: ${results.map((r) => r.identifier).join(',') || 'none'})`, status: 502 }
-  }
-  const nullifierHash = BigInt(raw)
-
-  // The proof was requested with the wallet as its signal, so a proof issued for one wallet must not
-  // be submittable for another. The signal is a public input to the circuit, so a tampered signal_hash
-  // makes verification fail — which is why reading it from the proof is sound once the call above
-  // succeeded. It is absent from the verify reply, so the proof is the only place to read it.
-  const sent = (body.proof as ProofResult)?.responses?.find((r) => r.identifier === 'proof_of_human')?.signal_hash
-  const expected = hashSignal(getAddress(address))
-  if (!sent || BigInt(sent) !== BigInt(expected)) {
-    if (process.env.NODE_ENV !== 'production') console.log('[worldid] signal', { sent, expected, address })
-    return { error: 'this proof was issued for a different wallet', status: 403 }
-  }
-
-  // The registry is the record of one-person-one-allocation, so let it be the one that rejects a
-  // reuse — checking first and then writing would still race two requests for the same person.
   const registry = PRODUCT.sepolia.humanRegistry
-  if (!registry) return { error: 'human registry is not deployed', status: 503 }
   const sepolia = PRODUCT.sepolia.chainId
-  try {
-    const hash = await opsWallet(sepolia).writeContract({
-      address: registry, abi: humanRegistryAbi, functionName: 'claim', args: [nullifierHash, address],
-    })
-    await client(sepolia).waitForTransactionReceipt({ hash })
-  } catch (e) {
-    const msg = (e as Error).message ?? ''
-    if (/HumanAlreadyClaimed/.test(msg)) return { error: 'this person already claimed a Senior allocation', status: 409 }
-    if (/WalletAlreadyClaimed/.test(msg)) return { error: 'this wallet already holds a Senior allocation', status: 409 }
-    throw e
+  const publicClient = client(sepolia)
+  const binding = async () => {
+    const [wallet, registered] = await Promise.all([
+      publicClient.readContract({
+        address: registry,
+        abi: humanRegistryAbi,
+        functionName: 'walletOf',
+        args: [nullifier]
+      }),
+      publicClient.readContract({
+        address: registry,
+        abi: humanRegistryAbi,
+        functionName: 'nullifierOf',
+        args: [address]
+      })
+    ])
+    return {
+      same:
+        wallet.toLowerCase() === address.toLowerCase() &&
+        registered === nullifier,
+      occupied: BigInt(wallet) !== 0n || registered !== 0n
+    }
   }
-  return { nullifierHash }
+  const existing = await binding()
+  // A previous registry write may have succeeded before the Hub grant failed. Resume that exact binding.
+  if (existing.same) return null
+  if (existing.occupied)
+    return {
+      message:
+        'This human or wallet is already linked to another Senior access registration.',
+      status: 409
+    }
+  try {
+    await opsWallet(sepolia).writeContract({
+      address: registry,
+      abi: humanRegistryAbi,
+      functionName: 'claim',
+      args: [nullifier, address]
+    })
+  } catch {
+    // The contract, not this read-before-write, atomically enforces uniqueness across concurrent requests.
+    const after = await binding()
+    if (after.same) return null
+    if (after.occupied)
+      return {
+        message:
+          'This human or wallet is already registered for Senior access.',
+        status: 409
+      }
+    throw new Error('Human registration could not be confirmed')
+  }
+  return null
 }
 
-/** Idempotent: the precompile is the source of truth, so re-granting an existing investor is a no-op.
- *  Returns once the grant is accepted; the caller does not wait for it to be mined. */
 async function grant(address: Address, vault: Address): Promise<string | null> {
-  const chainId = BigInt(PRODUCT.sepolia.chainId)
-  const pub = hubClient()
-  const already = await pub.readContract({
-    address: PRECOMPILE.permissions, abi: permissionsAbi, functionName: 'is_tranche_investor',
-    args: [PRODUCT.id, { chain_id: chainId, vault_address: vault }, address],
+  const descriptor = {
+    chain_id: BigInt(PRODUCT.sepolia.chainId),
+    vault_address: vault
+  }
+  const already = await hubClient().readContract({
+    address: PRECOMPILE.permissions,
+    abi: permissionsAbi,
+    functionName: 'is_tranche_investor',
+    args: [PRODUCT.id, descriptor, address]
   })
   if (already) return null
   return opsWallet(PRODUCT.hubChainId, { wait: false }).writeContract({
-    address: PRECOMPILE.permissions, abi: permissionsAbi, functionName: 'grant_permission',
-    args: [PRODUCT.id, 2, address, { chain_id: chainId, vault_address: vault }],
+    address: PRECOMPILE.permissions,
+    abi: permissionsAbi,
+    functionName: 'grant_permission',
+    args: [PRODUCT.id, 2, address, descriptor]
   })
 }
