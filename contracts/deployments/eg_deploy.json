@@ -1,156 +1,156 @@
 {
- "deployedAt": "2026-09-26T06:49:05.856Z",
- "productId": "0x000000020000000f",
- "activated": true,
- "topology": "Settlement hub holds no capital and only values and settles. Robinhood Testnet runs 50% of the capital in a mirrored basket of the eight largest QQQ names on Uniswap V3 (0.05%). Sepolia runs the other 50% as liquidity in a real Uniswap V2 USDC/USDT pair, earning the trading fees. User vaults (Senior/Junior) exist on Sepolia only.",
- "weights": {
-  "hub": 0,
-  "spoke": 5000,
-  "sepolia": 5000
- },
- "hub": {
-  "chainId": 49088,
-  "orchestrator": "0xb90933d2707EE5452A87888Ae1b5c353c391a261",
-  "orchestratorReused": true,
-  "valuation": "0x5137D5E4C15D3916cE5CF3C1a75Ab76D16b11135",
-  "valuationFacets": {
-   "SettlementFacet": "0x9A1d8cc02945DA5402a7E983ED41b680fE77CE1E",
-   "IntakeFacet": "0x38E4458D261d552c16D8916fA59666b51E72ed1d",
-   "DiamondCutFacet": "0x9F9C965B66E02A69b0ff19EA7b74E5AC7Fd6E574",
-   "DiamondLoupeFacet": "0x10eEc629F5E1387Eae701f31B647Bfd153892acc",
-   "OwnershipFacet": "0xE4179d59500dcdCe1dCff9B07885E81A313393c3",
-   "DiamondInit": "0xcDc9105acdE4E32ECf2bD6D2fB116A7f1Ba8d67F"
+  "deployedAt": "2026-09-26T13:59:04.244Z",
+  "productId": "0x0000000200000010",
+  "activated": true,
+  "topology": "Settlement hub holds no capital and only values and settles. Robinhood Testnet runs 50% of the capital in a mirrored basket of the eight largest QQQ names on Uniswap V3 (0.05%). Sepolia runs the other 50% as liquidity in a real Uniswap V2 USDC/USDT pair, earning the trading fees. User vaults (Senior/Junior) exist on Sepolia only.",
+  "weights": {
+    "hub": 0,
+    "spoke": 5000,
+    "sepolia": 5000
   },
-  "usdc": "0x4154fa18a6362ee58ec0f1041bbdf479706973f1",
-  "libraries": {
-   "AllocatorRegistry": "0x23B8EC57630cE7a11BE4cbBcC4c2451DEbEf2007",
-   "ValuationRecords": "0x440f67626703367b56592E317a76274040c46b7b"
-  }
- },
- "spoke": {
-  "entry": false,
-  "chainId": 46630,
-  "manager": "0x31060591b631d3c44F2c4C9eA9e5E501Fa3D79FC",
-  "mcAdapter": "0x68c3692dCD29e5e6b3149bfCE963f0F21cbF612C",
-  "feeSponsorHook": "0xba7B64B8123c065bd76C4c06C76812c7962235F3",
-  "usdc": "0x97ae5a704ef376f06aeb31b4fe14a0429675b90b",
-  "libraries": {
-   "BridgeRetry": "0x777278D96e360486245fEf2bE751801D93a9F34A"
+  "hub": {
+    "chainId": 49088,
+    "orchestrator": "0xb90933d2707EE5452A87888Ae1b5c353c391a261",
+    "orchestratorReused": true,
+    "valuation": "0x91AE8165d5f267a8F4C819c6CD2A39DF7A576Ce1",
+    "valuationFacets": {
+      "SettlementFacet": "0x4b135E82770aa89e200dC3009e2aE5Fe6FA2F9e2",
+      "IntakeFacet": "0xf460d6815bC65cAcdD7F02d61855069257941bB0",
+      "DiamondCutFacet": "0x9d3DEA900e2b0893b1f314A8f999291A7bCD5244",
+      "DiamondLoupeFacet": "0x7aE3652328eaA120D65726491A80F1Cc36193B81",
+      "OwnershipFacet": "0xE27227aE35F394650Dfc8D79f47EF63EE22A50b7",
+      "DiamondInit": "0xEdbAe1c5Df01369924193ca435132C6b1BaDE56E"
+    },
+    "usdc": "0x4154fa18a6362ee58ec0f1041bbdf479706973f1",
+    "libraries": {
+      "AllocatorRegistry": "0x2E5Cb0969E021382680b68BEC13D0936169A87E1",
+      "ValuationRecords": "0x5359294736Fff640673f0C14AF4e287174d0715f"
+    }
   },
-  "shareSr": "0x65e82CB27D8175F52bd9579b64a3F33A8364227F",
-  "shareJr": "0x92fb8A46Aa0C3B07cc22584FBA3De42513BE2183",
-  "vaultSr": "0x474fb193cAE8ddfD8222f541cdB87f45Ab18561F",
-  "vaultJr": "0x0dA1eccc34a3738501a33C343253Be0fD3fBbBfb",
-  "whitelistHook": "0xaF90F992dF13F4c755DE08d81060D9114D347AB9",
-  "basketAdapter": "0x3B29be45d789aB55dc5b89C85FA2583A9F5B397a",
-  "oracle": "0x17122f8286b2BC6976Da6A929299D1FB04E7576B",
-  "basket": [
-   {
-    "symbol": "NVDA",
-    "name": "NVIDIA",
-    "weightBps": 2020,
-    "feed": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15",
-    "token": "0x6B627C92ef3a6De35Cf446F7560cBB6fe0d88faa",
-    "pool": "0x36B6b6fB937B362CD372D4299C79173c3ADc474f",
-    "fee": 500
-   },
-   {
-    "symbol": "AAPL",
-    "name": "Apple",
-    "weightBps": 1692,
-    "feed": "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0",
-    "token": "0xf27f09B69D4C8599A6A07E828701a411D805dc4b",
-    "pool": "0x9273287a10826cBe570b35D767c6Cab1134Cb43F",
-    "fee": 500
-   },
-   {
-    "symbol": "GOOGL",
-    "name": "Alphabet",
-    "weightBps": 1402,
-    "feed": "0xF6f373a037c30F0e5010d854385cA89185AE638b",
-    "token": "0xe4fC09Ca54110B6f5e78e1fCB7e86F8D1D685b36",
-    "pool": "0x148f8E80b05b9b5c75AF63a7fabC7a056a7777Ca",
-    "fee": 500
-   },
-   {
-    "symbol": "MSFT",
-    "name": "Microsoft",
-    "weightBps": 1375,
-    "feed": "0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E",
-    "token": "0xD7338c5E76425707C85942efe41624753e46789e",
-    "pool": "0xed4a83893399f7f6aFC8107829F7BBb1544b6b9a",
-    "fee": 500
-   },
-   {
-    "symbol": "MU",
-    "name": "Micron",
-    "weightBps": 1067,
-    "feed": "0x425EEFdCf05ed6526C3cE61Af99429A228a6d596",
-    "token": "0x359e49Bd7d5C0Af2B193A072bE88831d33acFb24",
-    "pool": "0x38e58e609b37163E5d8dcbdd464b8D7618cD7D15",
-    "fee": 500
-   },
-   {
-    "symbol": "AMZN",
-    "name": "Amazon",
-    "weightBps": 1009,
-    "feed": "0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C",
-    "token": "0x5889Fd7B13628D0D42825265ba8221468b065b55",
-    "pool": "0xFdb80E21789E030A589F7b1D8E7Fb889bFCe13dF",
-    "fee": 500
-   },
-   {
-    "symbol": "AMD",
-    "name": "AMD",
-    "weightBps": 787,
-    "feed": "0x943A29E7ae51A4798823ca9eEd2ed533B2A22C72",
-    "token": "0x49408D6447ff7753e07dD4f52ac187d0f8e48e57",
-    "pool": "0x85A19D83f2932054f1833D40264bF191be320FE4",
-    "fee": 500
-   },
-   {
-    "symbol": "TSLA",
-    "name": "Tesla",
-    "weightBps": 648,
-    "feed": "0x4A1166a659A55625345e9515b32adECea5547C38",
-    "token": "0x9Cd1ec7bF0c0F22674597c29fa2428D5229b8181",
-    "pool": "0x4c8ECe451226Ea5f3A964c05d887Ae875178DCA4",
-    "fee": 500
-   }
-  ],
-  "uniswapV3": {
-   "factory": "0xdf9e3D6ffaC4513dD7b053212bbECcbCD15ec932",
-   "positionManager": "0xFFe6CFc4f759b65f9B62c9D05A9E21a78cE93e12",
-   "swapRouter02": "0xb79cB26e90EBBD9bC02c75267c9a86dBa1AFedB7",
-   "fee": 500
-  }
- },
- "sepolia": {
-  "entry": true,
-  "chainId": 11155111,
-  "manager": "0xbbC2933D53ca5AFA31fE0FEC8D8D9490B9688E2D",
-  "mcAdapter": "0xA147b22D522b6bAFA32780E78533696BDaFF0c4B",
-  "feeSponsorHook": "0xd3DDd27ddFCA232f0D725B482Bc2cf36b1a174C3",
-  "usdc": "0xc46f30bf7ffa9fd745725d48258d3d245ac28499",
-  "libraries": {
-   "BridgeRetry": "0xE4b8eda3349563B328B901de4713658018F2Ed12"
+  "spoke": {
+    "entry": false,
+    "chainId": 46630,
+    "router": "0x974Ce237b36450ECcd77587F9C479BE97452352C",
+    "manager": "0x1e20958dc70A42aaaA3b1eec16600B754119B4b0",
+    "mcAdapter": "0xE0EA1C31D4F25822a76978313f391D1EAE882eec",
+    "feeSponsorHook": "0xbE3FA64da2ada6BF902513bb9b82b1442e5b57bb",
+    "usdc": "0x97ae5a704ef376f06aeb31b4fe14a0429675b90b",
+    "libraries": {
+      "BridgeRetry": "0x7C6BF625F41eD572bD5313C72aA72F2D66A629cd"
+    },
+    "shareSr": "0x8EdA44F09dccCe861D0D2eEE488087Fc3389b0Ef",
+    "shareJr": "0x1Be7d87AFd628cdd5A18C8aD5DECC1Efb95A4787",
+    "vaultSr": "0x68CCb6fC4A2f174bB7fEB305a03dCd9C5d93B39B",
+    "vaultJr": "0x3330171532b3e8e0B2b0dcFc87786E4a0d4885C1",
+    "whitelistHook": "0x32CFDe76598ac542F6Bb6864B99b89E1bCB95ddF",
+    "basketAdapter": "0x0a21E5dde80F7a0F57b37a3d3fB3587Ffb3E30Dc",
+    "oracle": "0xD485df0882Ed0E6F6c19a9A07c8Bf1697DbcCa68",
+    "basket": [
+      {
+        "symbol": "NVDA",
+        "name": "NVIDIA",
+        "weightBps": 2020,
+        "feed": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15",
+        "token": "0x200657cE7C46f6A49d7A005987cCf5174d0cCb4c",
+        "pool": "0x8F33E694A8b307B4308fDa4433e4c0f91b97617d",
+        "fee": 500
+      },
+      {
+        "symbol": "AAPL",
+        "name": "Apple",
+        "weightBps": 1692,
+        "feed": "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0",
+        "token": "0x4570274A7F1278b0Af08043c512e2Fe3B0cca6Af",
+        "pool": "0xED0Ce36418ED9B3acAAf5f5d38fEc1A490944633",
+        "fee": 500
+      },
+      {
+        "symbol": "GOOGL",
+        "name": "Alphabet",
+        "weightBps": 1402,
+        "feed": "0xF6f373a037c30F0e5010d854385cA89185AE638b",
+        "token": "0xE6fB163357E96c2E96Bce42834F3Dc5fB2b7b83F",
+        "pool": "0x57DD34E38b5c81A733424F73e148eEC00D577de3",
+        "fee": 500
+      },
+      {
+        "symbol": "MSFT",
+        "name": "Microsoft",
+        "weightBps": 1375,
+        "feed": "0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E",
+        "token": "0x68c58082d19792390651CD7a5E62649958a7B4c7",
+        "pool": "0xF0066C84C7E17e3d55f64F6f172d7d44B475e59A",
+        "fee": 500
+      },
+      {
+        "symbol": "MU",
+        "name": "Micron",
+        "weightBps": 1067,
+        "feed": "0x425EEFdCf05ed6526C3cE61Af99429A228a6d596",
+        "token": "0x1903520f02b74aFF503c251d72b85EB7Ea0c7CE3",
+        "pool": "0xb4664a48eFE1C62D1a8f4f1A3C7Fd3713709a708",
+        "fee": 500
+      },
+      {
+        "symbol": "AMZN",
+        "name": "Amazon",
+        "weightBps": 1009,
+        "feed": "0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C",
+        "token": "0x209fa0E1e84abB09Fb756BB44A4a66774f5FDd91",
+        "pool": "0xbB350851A61A75D2B50E83cBc68d3b629435DD43",
+        "fee": 500
+      },
+      {
+        "symbol": "AMD",
+        "name": "AMD",
+        "weightBps": 787,
+        "feed": "0x943A29E7ae51A4798823ca9eEd2ed533B2A22C72",
+        "token": "0xf6b58Bc92247555F384D315D4Ca713326EfdE470",
+        "pool": "0x02B30085C8117e1ED11f28F605d881f0d371869d",
+        "fee": 500
+      },
+      {
+        "symbol": "TSLA",
+        "name": "Tesla",
+        "weightBps": 648,
+        "feed": "0x4A1166a659A55625345e9515b32adECea5547C38",
+        "token": "0x71af8417377a10b8AD488a84a19569eec5894aA0",
+        "pool": "0x0dFBde716803D9db2A6ce4CC37B9dFD1Bf388C3D",
+        "fee": 500
+      }
+    ],
+    "uniswapV3": {
+      "factory": "0xdf9e3D6ffaC4513dD7b053212bbECcbCD15ec932",
+      "positionManager": "0xFFe6CFc4f759b65f9B62c9D05A9E21a78cE93e12",
+      "swapRouter02": "0xb79cB26e90EBBD9bC02c75267c9a86dBa1AFedB7",
+      "fee": 500
+    }
   },
-  "shareSr": "0x894Ff19dE5ED8175730Bd28e7A289e3C3427a09F",
-  "shareJr": "0xBD1cB881F6Cd84Dc5Fff05134C7aE9E5D784a0f0",
-  "vaultSr": "0xdC95B306D3a689e83ED32aA62063343733FA48b8",
-  "vaultJr": "0x6BFE3B0002c53E0a0663fa8e9188C66879fB64B8",
-  "whitelistHook": "0x14c7E9e34E79dDB88d467DD6c80b389797f36200",
-  "lpAdapter": "0x32A1E8442488dE9934Ea538364AD4403EE181f0D",
-  "pool": "0xE1b02e5470F9635f5bBDEaa6f881f8666D842670",
-  "usdt": "0x7fF221Dc53b1526Cb416e064c157b3A897760e58",
-  "uniswapV2": {
-   "_note": "Canonical Uniswap V2 deployment on Ethereum Sepolia. We create our own USDC/USDT pair through this factory.",
-   "factory": "0xF62c03E08ada871A0bEb309762E260a7a6a880E6",
-   "router02": "0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3"
+  "sepolia": {
+    "entry": true,
+    "chainId": 11155111,
+    "router": "0x360033fb64435d5A66460930A79f3E971B281607",
+    "manager": "0x97e9cBf6DABaAeA14Ae98D2c53a0D4Ae0F9C427F",
+    "mcAdapter": "0xb494B89bC7b9742c5d0c39B5F8852D9Ea7fe227E",
+    "feeSponsorHook": "0x69eD4128fE38996bBFc35E83b0b8eD614BC2dBbA",
+    "usdc": "0xc46f30bf7ffa9fd745725d48258d3d245ac28499",
+    "libraries": {
+      "BridgeRetry": "0x7A33db1feB3584A572489163a98a24b58b4e8D70"
+    },
+    "shareSr": "0x33cE237485883ed9904e79DaC26468ebca313626",
+    "shareJr": "0x0f1927D7daaed56BFe8743D8981FedA545aE55B4",
+    "vaultSr": "0xDa61f39A8f08C2DaF234D15409845a6D7fAA5682",
+    "vaultJr": "0x5c6A445013ce0aD522F89303F13820367F387E31",
+    "whitelistHook": "0x9156172Fb800EADDa56879841DD213901C384690",
+    "lpAdapter": "0x4F81bd3148e33f4E950fde09b261e3EEd4322140",
+    "pool": "0x42Bc6f08B0bdA2dB179063e73497DcFe39a00f9A",
+    "usdt": "0x2516A91544e6C8ed34306eB43436951EcCa7Afe0",
+    "uniswapV2": {
+      "_note": "Canonical Uniswap V2 deployment on Ethereum Sepolia. We create our own USDC/USDT pair through this factory.",
+      "factory": "0xF62c03E08ada871A0bEb309762E260a7a6a880E6",
+      "router02": "0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3"
+    },
+    "humanRegistry": "0x2e52D59565542727f5c8EcC175e8F1b551415c05"
   },
-  "humanRegistry": "0xB4926251b1054Bb6b313dC344978cf777080cc3c",
-  "inventoryDesk": "0x55b57a7a0F41D668c584b2246d373B639084EAeD",
-  "_inventoryNote": "Par-exchange desk for StablePoolSource: supplies the missing leg of an entry one for one instead of buying it from the pool. Equal amounts both ways, so neither side gains or loses; it must approve the adapter to spend its counter token, and revoking that allowance disables it."
- },
- "activatedAt": "2026-09-26T07:03:13.919Z"
+  "activatedAt": "2026-09-26T14:05:49.278Z"
 }
