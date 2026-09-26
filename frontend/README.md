@@ -88,3 +88,8 @@ The landing introduces sources, the structuring layer and tranches in sequence, 
 React/Next view transitions connect pages and crossfade the Allocation, Holdings and Prices panels without replacing investment form state. Navigation uses the router's pending state; route skeletons and initial data placeholders retain the surrounding layout. Background refetches keep existing values visible. Unsupported browsers retain normal navigation with a short entry fade.
 
 FAQ answers expand and collapse as one clipped grid track, including their spacing; rapid toggles reverse the same transition. Controls use brief hover/press feedback; expandable content, transaction status and chart panels have restrained entrance transitions. The visible Pause motion control and the system's reduced-motion setting disable animation, including native page transitions and smooth scrolling. No animation delays transaction submission or fabricates market values.
+
+## AI assistance and human direction
+
+See [Frontend AI usage](AI_USAGE.md) for the frontend contributor's guidance,
+AI-assisted implementation areas, and the boundaries of that work.
