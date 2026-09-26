@@ -173,7 +173,7 @@ export default function PortfolioPage() {
         </div>
         <p className="sub" style={{ marginBottom: 0 }}>
           Ready to claim?{' '}
-          <Link className="text-link" href="/#invest">
+          <Link className="text-link" href="/products/stocks-stable#invest">
             Open the investment panel
           </Link>{' '}
           and select your tranche. Claim amounts above describe the original

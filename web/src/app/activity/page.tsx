@@ -76,7 +76,7 @@ export default function ActivityPage() {
             Track requests and settlement progress here after your first
             investment.
           </p>
-          <Link className="btn primary" href="/#invest">
+          <Link className="btn primary" href="/products/stocks-stable#invest">
             Explore the strategy
           </Link>
         </section>
