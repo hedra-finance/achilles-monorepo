@@ -2,6 +2,9 @@
 import type { Address, Hex } from 'viem'
 import { client, hubClient, hub } from './chains'
 import { PRODUCT } from './product'
+
+/** Keeper cadence override, matching MC_INTERVAL_SECS on the settlement bot. */
+const settleOverride = Number(process.env.NEXT_PUBLIC_SETTLE_SECS ?? 0) || 0
 import {
   PRECOMPILE, trancheSystemAbi, investmentsAbi, permissionsAbi, txRegistryAbi,
   vaultAbi, erc20Abi, basketAdapterAbi, uniV3PoolAbi, lpAdapterAbi, uniV2PoolAbi, adapterNameAbi,
@@ -40,9 +43,17 @@ export async function loadProduct(): Promise<Product> {
   const decimals = ts[0] ? Number(await client(ts[0].chainId).readContract({ address: ts[0].asset, abi: erc20Abi, functionName: 'decimals' })) : 6
   return {
     baseAsset, valuation, decimals,
-    settlement: { start: Number(start), length: Number(length), offset: Number(offset) },
+    // The pallet's window is what the product was registered with; the cadence users actually see is
+    // whatever triggers tryUpdateNAV, which has no on-chain time gate. When the keeper runs on a shorter
+    // interval, say so here — otherwise the page counts down to a settlement that already happened.
+    settlement: settleOverride
+      ? { start: Number(start), length: settleOverride, offset: Math.min(Number(offset), Math.floor(settleOverride / 3)) }
+      : { start: Number(start), length: Number(length), offset: Number(offset) },
     tranches: ts,
-    depositChains: chains.filter((c) => active.size === 0 || active.has(c)),
+    // Entry points, not "every chain with a tranche": the pallet requires a chain that has a manager to
+    // register at least one tranche, so the capital-only network has vaults too — unusable ones, with no
+    // allow-list grant behind them. Offering it here would hand the user a deposit that always reverts.
+    depositChains: chains.filter((c) => (active.size === 0 || active.has(c)) && PRODUCT.entryChains.includes(c)),
   }
 }
 
