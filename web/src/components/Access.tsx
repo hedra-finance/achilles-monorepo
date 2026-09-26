@@ -210,6 +210,10 @@ export function Access({
                   access. Achilles receives a verification proof, not your
                   personal identity details.
                 </p>
+                <p className="market-disclosure">
+                  This prevents duplicate human registrations. It is not KYC,
+                  proof of investment eligibility, or a limit on deposit size.
+                </p>
                 {worldIdConfigured() ? (
                   <button
                     className="btn primary sm"

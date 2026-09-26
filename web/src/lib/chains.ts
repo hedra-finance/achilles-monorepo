@@ -59,6 +59,10 @@ export const txUrl = (chainId: number, hash: string) => {
     ? `${c.blockExplorers.default.url}/tx/${hash}`
     : null
 }
+export const addressUrl = (chainId: number, address: string) => {
+  const explorer = chainById[chainId]?.blockExplorers?.default
+  return explorer ? `${explorer.url}/address/${address}` : null
+}
 
 const clients = new Map<number, PublicClient>()
 /** Per-chain read client. The hub has no Multicall3, so it falls back to HTTP batching; batch size is capped at 50. */

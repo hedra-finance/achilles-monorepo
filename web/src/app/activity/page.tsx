@@ -14,7 +14,7 @@ const PHASE: Record<string, [string, string]> = {
   processing: ['Processing', 'accent'],
   awaiting: ['Awaiting settlement', ''],
   settling: ['Settling', 'accent'],
-  receivable: ['Ready to claim', 'ok']
+  receivable: ['Settlement complete', 'ok']
 }
 
 /** Per-request cross-chain progress — steps, tx hashes and timestamps straight from the hub request registry. */
@@ -150,6 +150,17 @@ function ActivityContent() {
                 </div>
               )}
             </div>
+            {a.phase === 'receivable' && (
+              <div className="activity-next-action">
+                <p className="sub">
+                  This request has settled. It may already have been claimed;
+                  your current vault balance determines what is still available.
+                </p>
+                <Link className="text-link" href="/portfolio">
+                  View available claims →
+                </Link>
+              </div>
+            )}
           </div>
         )
       })}

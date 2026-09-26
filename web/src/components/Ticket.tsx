@@ -26,6 +26,7 @@ type Mode = 'invest' | 'redeem'
 type Context = Parameters<typeof deposit>[0]
 export function Ticket({
   product,
+  initialMode = 'invest',
   loading = false,
   last,
   type,
@@ -33,6 +34,7 @@ export function Ticket({
   onBusyChange
 }: {
   product?: Product
+  initialMode?: Mode
   loading?: boolean
   last: Settlement | null
   type: 'Senior' | 'Junior'
@@ -45,7 +47,7 @@ export function Ticket({
   const { switchChainAsync } = useSwitchChain()
   const qc = useQueryClient()
   const acct = useAccountData()
-  const [mode, setMode] = useState<Mode>('invest')
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [chain, setChain] = useState<number>(PRODUCT.entryChains[0])
   const [amt, setAmt] = useState('')
   const [busy, setBusy] = useState(false)
@@ -191,6 +193,51 @@ export function Ticket({
         </div>
       </div>
       <div className="ticket-body">
+        {pos &&
+          tranche &&
+          (pos.deposit.claimable > 0n || pos.redeem.claimable > 0n) && (
+            <div className="claims-box">
+              <h3>{type} · Ready to claim</h3>
+              <p className="sub">{chainLabel(chain)} · Settled requests</p>
+              {eligible !== true && pos.deposit.claimable > 0n && (
+                <p className="sub">
+                  Share claims can require active tranche access. If your claim
+                  is blocked, check access below.
+                </p>
+              )}
+              {pos.deposit.claimable > 0n && (
+                <div className="claim-row">
+                  <span>{fmt(pos.deposit.claimable, dec)} USDC deposited</span>
+                  <button
+                    className="btn sm"
+                    disabled={busy}
+                    onClick={() =>
+                      run(
+                        (ctx) => claim(ctx, tranche, 'deposit'),
+                        'Share claim'
+                      )
+                    }
+                  >
+                    Claim shares
+                  </button>
+                </div>
+              )}
+              {pos.redeem.claimable > 0n && (
+                <div className="claim-row">
+                  <span>{fmt(pos.redeem.claimable, dec)} shares redeemed</span>
+                  <button
+                    className="btn sm"
+                    disabled={busy}
+                    onClick={() =>
+                      run((ctx) => claim(ctx, tranche, 'redeem'), 'USDC claim')
+                    }
+                  >
+                    Claim USDC
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         <Access
           key={`${address ?? 'disconnected'}-${type}-${mode}`}
           onChooseJunior={() => {
@@ -410,44 +457,6 @@ export function Ticket({
             Retry account data
           </button>
         )}
-        {pos &&
-          tranche &&
-          (pos.deposit.claimable > 0n || pos.redeem.claimable > 0n) && (
-            <div className="claims-box">
-              <h3>Ready to claim</h3>
-              {pos.deposit.claimable > 0n && (
-                <div className="claim-row">
-                  <span>{fmt(pos.deposit.claimable, dec)} USDC deposited</span>
-                  <button
-                    className="btn sm"
-                    disabled={busy}
-                    onClick={() =>
-                      run(
-                        (ctx) => claim(ctx, tranche, 'deposit'),
-                        'Share claim'
-                      )
-                    }
-                  >
-                    Claim shares
-                  </button>
-                </div>
-              )}
-              {pos.redeem.claimable > 0n && (
-                <div className="claim-row">
-                  <span>{fmt(pos.redeem.claimable, dec)} shares redeemed</span>
-                  <button
-                    className="btn sm"
-                    disabled={busy}
-                    onClick={() =>
-                      run((ctx) => claim(ctx, tranche, 'redeem'), 'USDC claim')
-                    }
-                  >
-                    Claim USDC
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         {pos && (pos.deposit.pending > 0n || pos.redeem.pending > 0n) && (
           <p className="pending-note">
             {pos.deposit.pending > 0n && (

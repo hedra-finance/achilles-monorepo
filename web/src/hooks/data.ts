@@ -73,7 +73,6 @@ export function useAccountData() {
       ) as Record<number, boolean>
       return {
         positions,
-        eligible: permissions.length > 0 && permissions.every(Boolean),
         eligibility,
         balances
       }
