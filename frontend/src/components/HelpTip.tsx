@@ -1,5 +1,12 @@
 'use client'
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode
+} from 'react'
 import { createPortal } from 'react-dom'
 
 export function HelpTip({
@@ -11,6 +18,7 @@ export function HelpTip({
 }) {
   const id = useId()
   const trigger = useRef<HTMLButtonElement>(null)
+  const tooltip = useRef<HTMLSpanElement>(null)
   const [position, setPosition] = useState<{
     top: number
     left: number
@@ -23,13 +31,53 @@ export function HelpTip({
         left: Math.max(12, Math.min(rect.left - 120, innerWidth - 280))
       })
   }
+  useLayoutEffect(() => {
+    if (!position || !tooltip.current || !trigger.current) return
+    const anchor = trigger.current.getBoundingClientRect()
+    const box = tooltip.current.getBoundingClientRect()
+    const bottom = window.visualViewport
+      ? window.visualViewport.offsetTop + window.visualViewport.height
+      : innerHeight
+    const top = Math.max(
+      12,
+      Math.min(
+        anchor.bottom + 8 + box.height <= bottom - 12
+          ? anchor.bottom + 8
+          : anchor.top - box.height - 8,
+        bottom - box.height - 12
+      )
+    )
+    const left = Math.max(
+      12,
+      Math.min(anchor.left - box.width / 2, innerWidth - box.width - 12)
+    )
+    if (top !== position.top || left !== position.left)
+      setPosition({ top, left })
+  }, [position])
   useEffect(() => {
     if (!position) return
     const close = () => setPosition(null)
-    window.addEventListener('scroll', close, true)
+    const onScroll = (event: Event) => {
+      const button = trigger.current
+      const rect = button?.getBoundingClientRect()
+      const scroller = event.target instanceof Element ? event.target : null
+      const bounds = scroller?.contains(button)
+        ? scroller.getBoundingClientRect()
+        : { top: 0, bottom: innerHeight }
+      if (
+        button === document.activeElement &&
+        rect &&
+        rect.top >= Math.max(0, bounds.top) &&
+        rect.bottom <= Math.min(innerHeight, bounds.bottom)
+      ) {
+        // Keyboard focus may itself scroll the trigger into view.
+        show()
+      } else close()
+    }
+    window.addEventListener('scroll', onScroll, true)
     window.addEventListener('resize', close)
     return () => {
-      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('resize', close)
     }
   }, [position])
@@ -58,6 +106,7 @@ export function HelpTip({
       {position &&
         createPortal(
           <span
+            ref={tooltip}
             id={id}
             role="tooltip"
             className="help-content"

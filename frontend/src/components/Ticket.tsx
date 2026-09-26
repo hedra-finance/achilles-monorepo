@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { MotionLink as Link } from '@/components/MotionLink'
 import { formatUnits, type Hex } from 'viem'
 import { useConfig, useSwitchChain } from 'wagmi'
@@ -36,6 +37,7 @@ const pendingKey = `achilles:pending:${PRODUCT.idHex}`
 export function Ticket({
   product,
   compact = false,
+  actionSlot,
   initialMode = 'invest',
   loading = false,
   last,
@@ -45,6 +47,7 @@ export function Ticket({
 }: {
   product?: Product
   compact?: boolean
+  actionSlot?: HTMLDivElement | null
   initialMode?: Mode
   loading?: boolean
   last: Settlement | null
@@ -271,6 +274,40 @@ export function Ticket({
                         : reviewing
                           ? 'Confirm redemption request'
                           : 'Review redemption'
+  const primaryAction = (
+    <div className="ticket-primary-action">
+      {!address ? (
+        <button className="btn primary full" onClick={() => open()}>
+          <Icon name="wallet" size={16} />
+          Connect wallet
+        </button>
+      ) : (
+        <button
+          className="btn primary full"
+          aria-busy={busy}
+          disabled={locked || !ready}
+          onClick={() => {
+            if (!reviewing) {
+              setMsg(null)
+              setReviewed(reviewKey)
+            } else if (tranche && raw != null) {
+              void run(
+                (ctx) =>
+                  mode === 'invest'
+                    ? deposit(ctx, tranche, raw)
+                    : redeem(ctx, tranche, raw),
+                mode === 'invest' ? 'Deposit request' : 'Redemption request'
+              )
+            }
+          }}
+        >
+          {busy && <span className="busy-spinner" aria-hidden="true" />}
+          {buttonText}
+          {ready && !busy && <Icon name="arrow" size={16} />}
+        </button>
+      )}
+    </div>
+  )
   return (
     <section
       className={`card ticket ${compact ? 'compact-ticket' : ''}`}
@@ -582,38 +619,9 @@ export function Ticket({
             </button>
           </div>
         )}
-        <div className="ticket-primary-action">
-          {!address ? (
-            <button className="btn primary full" onClick={() => open()}>
-              <Icon name="wallet" size={16} />
-              Connect wallet
-            </button>
-          ) : (
-            <button
-              className="btn primary full"
-              aria-busy={busy}
-              disabled={locked || !ready}
-              onClick={() => {
-                if (!reviewing) {
-                  setMsg(null)
-                  setReviewed(reviewKey)
-                } else if (tranche && raw != null) {
-                  void run(
-                    (ctx) =>
-                      mode === 'invest'
-                        ? deposit(ctx, tranche, raw)
-                        : redeem(ctx, tranche, raw),
-                    mode === 'invest' ? 'Deposit request' : 'Redemption request'
-                  )
-                }
-              }}
-            >
-              {busy && <span className="busy-spinner" aria-hidden="true" />}
-              {buttonText}
-              {ready && !busy && <Icon name="arrow" size={16} />}
-            </button>
-          )}
-        </div>
+        {compact && actionSlot
+          ? createPortal(primaryAction, actionSlot)
+          : primaryAction}
         {(acct.isError ||
           (acct.data &&
             tranche &&

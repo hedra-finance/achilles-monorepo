@@ -171,7 +171,15 @@ function PortfolioContent() {
       </div>
       <div className="card portfolio-positions">
         <h3>Positions & actions</h3>
-        <div className="table-scroll">
+        <p className="positions-scroll-hint">
+          Scroll across to see balances, claims and actions.
+        </p>
+        <div
+          className="table-scroll"
+          tabIndex={0}
+          role="region"
+          aria-label="Position balances and actions"
+        >
           <table>
             <thead>
               <tr>

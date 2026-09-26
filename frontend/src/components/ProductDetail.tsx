@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useWalletAccount } from '@/hooks/wallet'
 import { useProduct, useOverview, useAccountData } from '@/hooks/data'
 import { NavChart } from './NavChart'
@@ -12,6 +12,7 @@ import { QueryNotice } from './State'
 import type { RiskLayer } from './YieldFlow'
 import { RiskExplainer } from './RiskExplainer'
 import { HelpTip } from './HelpTip'
+import { ScrollHint } from './ScrollHint'
 import { fmt, pct, displayYieldPercent } from '@/lib/math'
 import { hubConfigured } from '@/lib/chains'
 import { LoadingValue } from './Skeleton'
@@ -49,6 +50,9 @@ export function ProductDetail({
   const [view, setView] = useState<View>('assets')
   const [mobilePane, setMobilePane] = useState<'research' | 'trade'>('research')
   const [transactionBusy, setTransactionBusy] = useState(false)
+  const researchScroll = useRef<HTMLDivElement>(null)
+  const ticketScroll = useRef<HTMLDivElement>(null)
+  const [actionSlot, setActionSlot] = useState<HTMLDivElement | null>(null)
   useEffect(() => {
     const sync = () => {
       const hash = location.hash.slice(1)
@@ -241,6 +245,7 @@ export function ProductDetail({
             ))}
           </div>
           <div
+            ref={researchScroll}
             className="desk-panel"
             id="desk-panel"
             role="tabpanel"
@@ -339,6 +344,7 @@ export function ProductDetail({
               </section>
             )}
           </div>
+          <ScrollHint target={researchScroll} revision={view} />
         </section>
         <aside className="desk-trade" aria-label="Trade panel">
           <div className="desk-layer-heading">
@@ -384,18 +390,29 @@ export function ProductDetail({
               </button>
             ))}
           </div>
-          <div className="desk-ticket-scroll">
-            <Ticket
-              compact
-              initialMode={initialMode}
-              loading={loading}
-              product={p}
-              last={last}
-              type={selected}
-              onTypeChange={setSelected}
-              onBusyChange={setTransactionBusy}
-            />
+          <div className="desk-ticket-viewport">
+            <div
+              className="desk-ticket-scroll"
+              ref={ticketScroll}
+              tabIndex={0}
+              role="region"
+              aria-label="Trade form"
+            >
+              <Ticket
+                compact
+                actionSlot={actionSlot}
+                initialMode={initialMode}
+                loading={loading}
+                product={p}
+                last={last}
+                type={selected}
+                onTypeChange={setSelected}
+                onBusyChange={setTransactionBusy}
+              />
+            </div>
+            <ScrollHint target={ticketScroll} />
           </div>
+          <div className="desk-trade-actions" ref={setActionSlot} />
           <p className="desk-trade-footnote">
             <Icon name="clock" size={12} /> Request → settle → claim. Capital is
             at risk.
