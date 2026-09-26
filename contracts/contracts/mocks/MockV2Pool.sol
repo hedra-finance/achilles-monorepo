@@ -92,6 +92,9 @@ contract MockV2Pool is ERC20 {
         amountA = liquidity * IERC20(tokenA).balanceOf(address(this)) / ts;
         amountB = liquidity * IERC20(tokenB).balanceOf(address(this)) / ts;
         require(amountA >= aMin && amountB >= bMin, "INSUFFICIENT_AMOUNT");
+        // Router02 pulls the LP with transferFrom, so require the allowance the real one requires —
+        // otherwise this mock silently accepts code that reverts against a canonical deployment.
+        _spendAllowance(msg.sender, address(this), liquidity);
         _burn(msg.sender, liquidity);
         IERC20(tokenA).safeTransfer(to, amountA);
         IERC20(tokenB).safeTransfer(to, amountB);
