@@ -52,6 +52,18 @@ contract AllowlistHook is Initializable, ITransferHook {
         return "";
     }
 
+    /// @notice Per-user request capacity, asked by RequestVault before it takes a depositor's funds.
+    /// @dev    This product caps nobody, so every request is admitted. The function exists because the vault
+    ///         probes for it with a low-level call and reads a failed call as "no gate": the behaviour was
+    ///         already correct, but a call to a function that does not exist reverts, and that left an
+    ///         [execution reverted] frame on every single deposit for explorers to flag. Returning true is
+    ///         exactly what the missing function produced, so nothing about admission changes here.
+    ///         A real cap would keep the same signature and record against (vault, who).
+    function consumeCapacity(address vault, address who, uint256 amount) external pure returns (bool) {
+        vault; who; amount;
+        return true;
+    }
+
     // ── WHITELIST_SYNC application — writer only, per-vault grant/revoke ──
     // Ordering (propagation nonce) is enforced by the writer; the hook only records final state.
     // The nonce is already emitted in the coordinator's WhitelistApplied in the same tx, so it is not repeated here.
