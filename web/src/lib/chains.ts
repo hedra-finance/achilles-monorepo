@@ -3,15 +3,11 @@ import { sepolia } from 'viem/chains'
 
 // Hub: the settlement chain. The tranche precompiles (0x200-0x204) only exist here. Read-only — no wallet connects to it.
 export const hubConfigured = Boolean(process.env.NEXT_PUBLIC_HUB_RPC?.trim())
-const HUB_EXPLORER = process.env.NEXT_PUBLIC_HUB_EXPLORER
 export const hub = defineChain({
   id: 49088,
   name: 'Settlement Hub',
   nativeCurrency: { name: 'Hub Token', symbol: 'HUB', decimals: 18 },
-  rpcUrls: { default: { http: [process.env.NEXT_PUBLIC_HUB_RPC ?? ''] } },
-  ...(HUB_EXPLORER
-    ? { blockExplorers: { default: { name: 'Explorer', url: HUB_EXPLORER } } }
-    : {})
+  rpcUrls: { default: { http: [process.env.NEXT_PUBLIC_HUB_RPC ?? ''] } }
 })
 
 export const robinhood = defineChain({
