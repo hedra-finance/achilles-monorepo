@@ -39,7 +39,9 @@ export function Access() {
       const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
       const j = await r.json()
       if (!r.ok) throw new Error(j.error ?? 'failed')
-      setMsg({ text: `${label}: done` })
+      // The allow-list grant is sent, not waited on — the eligibility query polls, so say so rather
+      // than claiming "done" while the panel still reads "Not eligible yet" for another few seconds.
+      setMsg({ text: j.pending ? `${label}: granted — this takes a few seconds to appear` : `${label}: done` })
       qc.invalidateQueries({ queryKey: ['account'] })
       return true
     } catch (e) { setMsg({ text: `${label}: ${(e as Error).message}`, bad: true }); return false }

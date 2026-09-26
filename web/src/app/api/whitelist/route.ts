@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { Address } from 'viem'
-import { opsWallet, isAddress } from '../_ops'
+import { opsWallet, toAddress } from '../_ops'
 import { hubClient, client } from '@/lib/chains'
 import { PRODUCT } from '@/lib/product'
 import { PRECOMPILE, permissionsAbi, humanRegistryAbi } from '@/lib/abi'
@@ -37,10 +37,17 @@ type ProofResult = { responses?: { identifier: string; signal_hash?: string }[] 
  *   Junior — absorbs losses first and has no capacity limit, so there is nothing to farm. An invite
  *            code is enough, and it stays open to anyone who cannot or will not verify.
  */
+/**
+ * Two on-chain writes on two chains, so this is the slowest route in the app. On a serverless host the
+ * default function timeout is far below what a Sepolia receipt takes; 60s is the ceiling that matters.
+ */
+export const maxDuration = 60
+
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
-  const { address, tranche } = body as { address?: string; tranche?: 'senior' | 'junior' }
-  if (!isAddress(address)) return NextResponse.json({ error: 'bad address' }, { status: 400 })
+  const { address: raw, tranche } = body as { address?: string; tranche?: 'senior' | 'junior' }
+  const address = toAddress(raw)
+  if (!address) return NextResponse.json({ error: 'bad address' }, { status: 400 })
 
   const vaults = PRODUCT.vaults[PRODUCT.sepolia.chainId]
   const vault = tranche === 'senior' ? vaults.sr : vaults.jr
@@ -53,7 +60,9 @@ export async function POST(req: Request) {
   }
 
   const granted = await grant(address, vault)
-  return NextResponse.json({ ok: true, tranche: tranche ?? 'junior', granted })
+  // `granted` is a hash, not a confirmation: the client polls its own eligibility anyway, so waiting
+  // here would only add a second chain's block time to a request already bounded by the first.
+  return NextResponse.json({ ok: true, tranche: tranche ?? 'junior', granted, pending: !!granted })
 }
 
 /** Verifies the IDKit proof with World, then binds the nullifier to this wallet on-chain. */
@@ -121,7 +130,8 @@ async function verifyHuman(
   return { nullifierHash }
 }
 
-/** Idempotent: the precompile is the source of truth, so re-granting an existing investor is a no-op. */
+/** Idempotent: the precompile is the source of truth, so re-granting an existing investor is a no-op.
+ *  Returns once the grant is accepted; the caller does not wait for it to be mined. */
 async function grant(address: Address, vault: Address): Promise<string | null> {
   const chainId = BigInt(PRODUCT.sepolia.chainId)
   const pub = hubClient()
@@ -130,10 +140,8 @@ async function grant(address: Address, vault: Address): Promise<string | null> {
     args: [PRODUCT.id, { chain_id: chainId, vault_address: vault }, address],
   })
   if (already) return null
-  const hash = await opsWallet(PRODUCT.hubChainId).writeContract({
+  return opsWallet(PRODUCT.hubChainId, { wait: false }).writeContract({
     address: PRECOMPILE.permissions, abi: permissionsAbi, functionName: 'grant_permission',
     args: [PRODUCT.id, 2, address, { chain_id: chainId, vault_address: vault }],
   })
-  await pub.waitForTransactionReceipt({ hash })
-  return hash
 }
