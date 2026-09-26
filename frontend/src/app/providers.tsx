@@ -5,12 +5,12 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import { WagmiProvider, cookieToInitialState } from 'wagmi'
 import { createAppKit } from '@reown/appkit/react'
 import { wagmiAdapter, wagmiConfig, projectId } from '@/lib/wagmi'
-import { spokeChains } from '@/lib/chains'
+import { walletChains } from '@/lib/chains'
 
 createAppKit({
   adapters: [wagmiAdapter],
   projectId: projectId || '00000000000000000000000000000000',
-  networks: [spokeChains[0], ...spokeChains.slice(1)],
+  networks: [walletChains[0], ...walletChains.slice(1)],
   metadata: {
     name: 'Achilles',
     description: 'Cross-chain tranche vaults',

@@ -45,8 +45,16 @@ export const sepoliaChain = defineChain({
   rpcUrls: { default: { http: [...new Set(SEPOLIA_RPCS)] } }
 })
 
-/** Chains a wallet connects to = the two spokes that hold vaults. The hub is excluded. */
-export const spokeChains = [sepoliaChain, robinhood] as const
+/**
+ * Chains a wallet connects to — Sepolia only, because that is the only network a user ever signs on
+ * (PRODUCT.entryChains). Robinhood runs capital and is read through `client(46630)` below, which has
+ * nothing to do with wagmi.
+ *
+ * Listing Robinhood here was what produced "chain is not available on free plan, please upgrade to paid
+ * plan [From https://rpc.walletconnect.org]": AppKit asks its own hosted RPC about every network it is
+ * given, and that service does not serve this testnet. Our transports never entered into it.
+ */
+export const walletChains = [sepoliaChain] as const
 export const chainById: Record<
   number,
   typeof hub | typeof robinhood | typeof sepoliaChain
