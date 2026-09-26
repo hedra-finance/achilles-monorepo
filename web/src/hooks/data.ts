@@ -3,11 +3,16 @@ import { useQuery } from '@tanstack/react-query'
 import { useAccount } from 'wagmi'
 import type { Address } from 'viem'
 import * as R from '@/lib/reads'
-
+import { hubConfigured } from '@/lib/chains'
 const POLL = 15_000
 
-export const useProduct = () => useQuery({ queryKey: ['product'], queryFn: R.loadProduct, staleTime: Infinity })
-
+export const useProduct = () =>
+  useQuery({
+    queryKey: ['product'],
+    enabled: hubConfigured,
+    queryFn: R.loadProduct,
+    staleTime: 60_000
+  })
 export function useOverview() {
   const { data: p } = useProduct()
   return useQuery({
@@ -15,18 +20,42 @@ export function useOverview() {
     enabled: !!p,
     refetchInterval: POLL,
     queryFn: async () => {
-      const [last, history, sources] = await Promise.all([R.lastSettlement(p!), R.settlementHistory(p!, 400), R.yieldSources()])
-      return { last, history, sources }
-    },
+      // A failing source RPC must not hide successfully loaded NAV or share prices.
+      const [last, history, sources] = await Promise.allSettled([
+        R.lastSettlement(p!),
+        R.settlementHistory(p!, 400),
+        R.yieldSources()
+      ])
+      const issues = [
+        last.status === 'rejected' ? 'last' : '',
+        history.status === 'rejected' ? 'history' : '',
+        sources.status === 'rejected' ? 'sources' : ''
+      ].filter(Boolean)
+      return {
+        last: last.status === 'fulfilled' ? last.value : null,
+        history: history.status === 'fulfilled' ? history.value : [],
+        sources: sources.status === 'fulfilled' ? sources.value : [],
+        issues
+      }
+    }
   })
 }
-export const useBasket = () => useQuery({ queryKey: ['basket'], queryFn: R.basketHoldings, refetchInterval: 60_000 })
+export const useBasket = () =>
+  useQuery({
+    queryKey: ['basket'],
+    enabled: hubConfigured,
+    queryFn: R.basketHoldings,
+    refetchInterval: 60_000
+  })
 export function useLp() {
   const { data: p } = useProduct()
-  return useQuery({ queryKey: ['lp', !!p], enabled: !!p, queryFn: () => R.lpStats(p!), refetchInterval: 30_000 })
+  return useQuery({
+    queryKey: ['lp', !!p],
+    enabled: !!p,
+    queryFn: () => R.lpStats(p!),
+    refetchInterval: 30_000
+  })
 }
-
-/** Everything about one wallet — balances, eligibility, tranche state. Disabled when no wallet is connected. */
 export function useAccountData() {
   const { address } = useAccount()
   const { data: p } = useProduct()
@@ -35,19 +64,46 @@ export function useAccountData() {
     enabled: !!p && !!address,
     refetchInterval: POLL,
     queryFn: async () => {
-      const [pos, eligible, balances] = await Promise.all([
-        R.position(p!, address!), R.canDeposit(p!, address!), R.assetBalances(p!, address!),
+      const [positions, permissions, balances] = await Promise.all([
+        R.position(p!, address!),
+        Promise.all(
+          p!.tranches.map((t) => R.canDeposit(p!, address!, t.index))
+        ),
+        R.assetBalances(p!, address!)
       ])
-      return { positions: pos, eligible, balances }
-    },
+      const eligibility = Object.fromEntries(
+        p!.tranches.map((t, i) => [t.index, permissions[i]])
+      ) as Record<number, boolean>
+      return {
+        positions,
+        eligible: permissions.length > 0 && permissions.every(Boolean),
+        eligibility,
+        balances
+      }
+    }
   })
 }
 export function useActivity(address?: Address) {
-  return useQuery({ queryKey: ['activity', address], enabled: !!address, refetchInterval: POLL, queryFn: () => R.activity(address!) })
+  return useQuery({
+    queryKey: ['activity', address],
+    enabled: hubConfigured && !!address,
+    refetchInterval: POLL,
+    queryFn: () => R.activity(address!)
+  })
 }
 export function useReceives(address?: Address) {
-  return useQuery({ queryKey: ['receives', address], enabled: !!address, refetchInterval: 60_000, queryFn: () => R.receiveHistory(address!) })
+  return useQuery({
+    queryKey: ['receives', address],
+    enabled: hubConfigured && !!address,
+    refetchInterval: 60_000,
+    queryFn: () => R.receiveHistory(address!)
+  })
 }
 export function useSettlementProgress(round: number | null) {
-  return useQuery({ queryKey: ['settle', round], enabled: !!round, refetchInterval: POLL, queryFn: () => R.settlementProgress(round!) })
+  return useQuery({
+    queryKey: ['settle', round],
+    enabled: hubConfigured && !!round,
+    refetchInterval: POLL,
+    queryFn: () => R.settlementProgress(round!)
+  })
 }

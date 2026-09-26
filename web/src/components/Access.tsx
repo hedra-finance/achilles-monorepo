@@ -2,153 +2,130 @@
 import { useState } from 'react'
 import { useAccount } from 'wagmi'
 import { useQueryClient } from '@tanstack/react-query'
-import { IDKitRequestWidget, proofOfHuman } from '@worldcoin/idkit'
 import { useAccountData } from '@/hooks/data'
-import { chainLabel } from '@/lib/chains'
+import { hubConfigured } from '@/lib/chains'
 import { PRODUCT } from '@/lib/product'
-import { worldIdConfigured } from '@/lib/worldid'
+import { Icon } from './Icon'
 
-type RpContext = { rp_id: string; nonce: string; created_at: number; expires_at: number; signature: string }
-type Ctx = { app_id: `app_${string}`; action: string; rp_context: RpContext }
-
-/**
- * Access — the two ways to become eligible to hold this product's ERC-1404 shares.
- *
- * Senior is the scarce side: a fixed rate ahead of Junior, limited capacity, so one person with
- * fifty wallets could take all of it. That is the moment worth spending a verification on, and
- * proof of human is the least we can ask that still answers it — we need to know the wallets are
- * different people, not who those people are. No passport, no selfie, no PII: the nullifier that
- * comes back is scoped to this action and means only "same person as before" or "new person".
- *
- * Junior is not scarce (it absorbs losses first and has no cap), so it keeps the invite code — and
- * it is the honest fallback for anyone who cancels, has no World App, or is rejected.
- */
 export function Access() {
   const { address } = useAccount()
   const acct = useAccountData()
   const qc = useQueryClient()
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
-  const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null)
-  const [ctx, setCtx] = useState<Ctx | null>(null)
-  const [open, setOpen] = useState(false)
-
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   async function post(path: string, body: object, label: string) {
-    setBusy(label); setMsg(null)
+    setBusy(label)
+    setMsg(null)
     try {
-      const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-      const j = await r.json()
-      if (!r.ok) throw new Error(j.error ?? 'failed')
-      // The allow-list grant is sent, not waited on — the eligibility query polls, so say so rather
-      // than claiming "done" while the panel still reads "Not eligible yet" for another few seconds.
-      setMsg({ text: j.pending ? `${label}: granted — this takes a few seconds to appear` : `${label}: done` })
-      qc.invalidateQueries({ queryKey: ['account'] })
-      return true
-    } catch (e) { setMsg({ text: `${label}: ${(e as Error).message}`, bad: true }); return false }
-    finally { setBusy(null) }
+      const r = await fetch(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      const j = await r.json().catch(() => null)
+      if (!r.ok)
+        throw new Error(
+          j?.error ?? 'The service is unavailable. Please try again.'
+        )
+      setMsg({
+        ok: true,
+        text:
+          label === 'Access'
+            ? 'Access granted on the hub. It may take a moment to reach the vault.'
+            : j?.skipped
+              ? 'Your wallet already has enough testnet gas.'
+              : 'Testnet gas sent to your wallet.'
+      })
+      void qc.invalidateQueries({ queryKey: ['account'] })
+    } catch (e) {
+      setMsg({
+        ok: false,
+        text: e instanceof Error ? e.message : 'Could not complete the request.'
+      })
+    } finally {
+      setBusy(null)
+    }
   }
-
-  /** The widget needs a server-signed context; the RP key never reaches the browser. */
-  async function startVerification() {
-    setBusy('World ID'); setMsg(null)
-    try {
-      const r = await fetch('/api/worldid')
-      const j = await r.json()
-      if (!r.ok) throw new Error(j.error ?? 'could not start verification')
-      setCtx(j); setOpen(true)
-    } catch (e) { setMsg({ text: `World ID: ${(e as Error).message}`, bad: true }) }
-    finally { setBusy(null) }
-  }
-
   if (!address) return null
   const eligible = acct.data?.eligible
-  const worldReady = worldIdConfigured()
-
   return (
-    <div className="card">
-      <h3>Access</h3>
-      <div className="row" style={{ marginBottom: 10 }}>
-        <span className={`pill ${eligible ? 'ok' : eligible === false ? 'bad' : ''}`}>
-          {eligible ? 'Eligible' : eligible === false ? 'Not eligible yet' : 'Checking…'}
-        </span>
-        <span className="sub">
-          Shares are ERC-1404: only allow-listed wallets can hold them. The grant is recorded on the hub and relayed to each network.
+    <section className="card access-card" aria-label="Testnet access">
+      <div className="access-status">
+        <h3 style={{ margin: 0 }}>Testnet access</h3>
+        <span className={'pill ' + (eligible ? 'ok' : '')}>
+          {acct.isError
+            ? 'Unavailable'
+            : eligible
+              ? 'Approved'
+              : eligible === false
+                ? 'Invite required'
+                : !hubConfigured
+                  ? 'Not connected'
+                  : 'Checking…'}
         </span>
       </div>
-
-      {eligible === false && (
-        <>
-          <div style={{ marginBottom: 12 }}>
-            <strong>Senior — one allocation per person</strong>
-            <p className="sub" style={{ margin: '2px 0 6px' }}>
-              Senior takes a fixed rate before Junior, so its capacity is limited. Verifying you are a distinct
-              human keeps one person from taking it across many wallets. We record only a nullifier, never your identity.
-            </p>
-            {worldReady ? (
-              <button className="btn primary" disabled={!!busy} onClick={startVerification}>
-                {busy === 'World ID' ? 'Opening…' : 'Verify with World ID'}
-              </button>
-            ) : (
-              <span className="sub">World ID is not configured on this deployment.</span>
-            )}
-          </div>
-
-          <div>
-            <strong>Junior — open</strong>
-            <p className="sub" style={{ margin: '2px 0 6px' }}>
-              Junior absorbs losses first and has no cap, so it needs no proof of personhood. Use this if you
-              cancel, do not have World App, or verification is unavailable.
-            </p>
-            <div className="row">
-              <input className="amt" style={{ fontSize: 15, maxWidth: 220 }} placeholder="Invite code"
-                value={code} onChange={(e) => setCode(e.target.value)} />
-              <button className="btn" disabled={!!busy || !code}
-                onClick={() => post('/api/whitelist', { address, tranche: 'junior', code }, 'Junior access')}>
-                {busy === 'Junior access' ? 'Granting…' : 'Get Junior access'}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {ctx && (
-        <IDKitRequestWidget
-          open={open}
-          onOpenChange={setOpen}
-          app_id={ctx.app_id}
-          action={ctx.action}
-          rp_context={ctx.rp_context}
-          // Proof of Human is the whole ask: distinctness, not identity. Passport or Selfie Check would
-          // collect more than this decision needs.
-          preset={proofOfHuman({ signal: address })}
-          // v4 only. Accepting legacy proofs would be friendlier to people verified before World ID 4.0,
-          // but the same person yields a different nullifier under v3 than under v4 — two namespaces in
-          // one registry is a second Senior allocation for anyone who owns both. Scarcity is the whole
-          // reason this gate exists, so the stricter setting wins; Junior stays open to everyone else.
-          allow_legacy_proofs={false}
-          handleVerify={async (proof: unknown) => {
-            const ok = await post('/api/whitelist', { address, tranche: 'senior', proof }, 'Senior access')
-            // Throwing keeps the widget on its error state instead of showing success we did not get.
-            if (!ok) throw new Error('verification rejected')
+      <p>
+        Approved wallets can hold shares in this strategy. Use your team invite
+        to request access.
+      </p>
+      {eligible !== true && (
+        <form
+          className="row"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (code.trim())
+              void post(
+                '/api/whitelist',
+                { address, code: code.trim() },
+                'Access'
+              )
           }}
-          onSuccess={() => setOpen(false)}
-        />
-      )}
-
-      <div className="row" style={{ marginTop: 10 }}>
-        <span className="sub">Need testnet funds?</span>
-        {PRODUCT.entryChains.map((c) => (
-          <button key={c} className="btn sm" disabled={!!busy}
-            onClick={() => post('/api/gas', { address, chainId: c }, `Gas on ${chainLabel(c)}`)}>
-            {busy === `Gas on ${chainLabel(c)}` ? 'Sending…' : `Gas on ${chainLabel(c)}`}
+        >
+          <label className="sr-only" htmlFor="invite-code">
+            Invite code
+          </label>
+          <input
+            id="invite-code"
+            className="amt"
+            autoComplete="off"
+            placeholder="Invite code"
+            value={code}
+            disabled={!!busy}
+            onChange={(e) => setCode(e.target.value)}
+          />
+          <button className="btn sm" disabled={!!busy || !code.trim()}>
+            {busy === 'Access' ? 'Requesting…' : 'Get access'}
           </button>
-        ))}
-        <button className="btn sm" disabled={!!busy}
-          onClick={async () => { if (await post('/api/faucet', { address }, 'Test USDC')) qc.invalidateQueries({ queryKey: ['account'] }) }}>
-          {busy === 'Test USDC' ? 'Minting…' : 'Test USDC'}
+        </form>
+      )}
+      <div className="faucet-row">
+        <span>
+          <Icon name="info" size={12} /> Need testnet gas?
+        </span>
+        <button
+          className="btn sm"
+          disabled={!!busy || eligible !== true}
+          onClick={() =>
+            post(
+              '/api/gas',
+              { address, chainId: PRODUCT.entryChains[0] },
+              'Gas'
+            )
+          }
+        >
+          {busy === 'Gas' ? 'Sending…' : 'Get Sepolia ETH'}
         </button>
       </div>
-      {msg && <p className={msg.bad ? 'err' : 'okmsg'} style={{ marginBottom: 0 }}>{msg.text}</p>}
-    </div>
+      {msg && (
+        <p
+          role="status"
+          className={msg.ok ? 'okmsg' : 'err'}
+          style={{ margin: '12px 0 0' }}
+        >
+          {msg.text}
+        </p>
+      )}
+    </section>
   )
 }

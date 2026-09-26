@@ -57,7 +57,7 @@ export async function loadProduct(): Promise<Product> {
   }
 }
 
-export type Settlement = { id: number; sharePrices: bigint[]; trancheNavs: bigint[]; productNav: bigint; at: Date | null }
+export type Settlement = { id: number; sharePrices: (bigint | null)[]; trancheNavs: (bigint | null)[]; productNav: bigint; at: Date | null }
 
 /** Latest finalized settlement — share prices and NAV ordered by tranche. Null if nothing has settled yet. */
 export async function lastSettlement(p: Product): Promise<Settlement | null> {
@@ -66,13 +66,13 @@ export async function lastSettlement(p: Product): Promise<Settlement | null> {
   if (id === 0n) return null
   const byChain = new Map(chains.map((c) => [Number(c.chain_id), c]))
   const seen = new Map<number, number>()
-  const sharePrices: bigint[] = [], trancheNavs: bigint[] = []
+  const sharePrices: (bigint | null)[] = [], trancheNavs: (bigint | null)[] = []
   for (const t of p.tranches) {
     const i = seen.get(t.chainId) ?? 0
     seen.set(t.chainId, i + 1)
     const c = byChain.get(t.chainId)
-    sharePrices.push(c?.share_prices[i] ?? 0n)
-    trancheNavs.push(c?.tranche_navs[i] ?? 0n)
+    sharePrices.push(c?.share_prices[i] ?? null)
+    trancheNavs.push(c?.tranche_navs[i] ?? null)
   }
   const [, , , , ts] = await h.readContract({ address: INV, abi: investmentsAbi, functionName: 'get_settlement_state', args: [pid, id] })
   return { id: Number(id), sharePrices, trancheNavs, productNav, at: ts ? new Date(Number(ts)) : null }
@@ -92,7 +92,7 @@ export async function settlementHistory(p: Product, lastN = 200): Promise<Settle
       const ord = p.tranches.map((t) => byVault.get(t.vault.toLowerCase()))
       out.push({
         id: Number(e.settlement_id), productNav: e.product_nav,
-        sharePrices: ord.map((t) => t?.share_price ?? 0n), trancheNavs: ord.map((t) => t?.tranche_nav ?? 0n),
+        sharePrices: ord.map((t) => t?.share_price ?? null), trancheNavs: ord.map((t) => t?.tranche_nav ?? null),
         at: e.timestamp ? new Date(Number(e.timestamp)) : null,
       })
     }

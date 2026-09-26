@@ -1,55 +1,176 @@
 'use client'
 import type { Product, YieldSource } from '@/lib/reads'
 import { useBasket, useLp } from '@/hooks/data'
-import { chainLabel } from '@/lib/chains'
 import { fmt, pct, wadToNumber } from '@/lib/math'
 import { PRODUCT } from '@/lib/product'
+import { hubConfigured } from '@/lib/chains'
 
-/** Where the capital sits — per-chain yield sources (from the ledger), the stock-basket composition, and the pool state. */
-export function Allocation({ product, sources }: { product: Product; sources: YieldSource[] }) {
+export function Allocation({
+  product,
+  sources,
+  sourcesUnavailable
+}: {
+  product?: Product
+  sources: YieldSource[]
+  sourcesUnavailable: boolean
+}) {
   const basket = useBasket()
   const lp = useLp()
-  const dec = product.decimals
-  const colors = ['var(--accent)', 'var(--senior)', 'var(--junior)']
+  const dec = product?.decimals ?? 6
+  const holdings = basket.data
   return (
-    <div className="grid grid-2">
-      <div className="card">
-        <h3>Where the capital is</h3>
-        {sources.length === 0 ? <div className="sub">Recorded at the first settlement.</div> : (
-          <>
-            <div className="bar" style={{ marginBottom: 10 }}>{sources.map((s, i) => <span key={s.address} style={{ width: `${s.sharePct}%`, background: colors[i % colors.length] }} />)}</div>
-            <table><tbody>
-              {sources.map((s, i) => (
-                <tr key={s.address}>
-                  <td><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: colors[i % colors.length], marginRight: 8 }} />{s.name ?? 'Yield source'}<div className="sub">{chainLabel(s.chainId)} · target {(PRODUCT.weights[s.chainId] ?? 0) / 100}%</div></td>
-                  <td className="num">{fmt(s.principal, dec)} USDC<div className="sub">{pct(s.sharePct)}</div></td>
-                </tr>
-              ))}
-            </tbody></table>
-          </>
-        )}
-      </div>
-      <div className="card">
-        <h3>Robinhood · stock basket</h3>
-        {!basket.data ? <div className="sub">Loading…</div> : basket.data.length === 0 ? <div className="sub">Basket not wired yet.</div> : (
-          <table>
-            <thead><tr><th>Stock</th><th className="num">Weight</th><th className="num">Price</th><th className="num">Held</th></tr></thead>
-            <tbody>{basket.data.map((b) => (
-              <tr key={b.token}><td>{b.symbol.replace(/^m/, '')}</td><td className="num">{(b.weightBps / 100).toFixed(2)}%</td><td className="num">${wadToNumber(b.priceWad).toFixed(2)}</td><td className="num">{fmt(b.amount, 6, 4)}</td></tr>
-            ))}</tbody>
-          </table>
-        )}
-      </div>
-      <div className="card">
-        <h3>Sepolia · USDC/USDT liquidity pool</h3>
-        {!lp.data ? <div className="sub">Loading…</div> : (
-          <div className="grid grid-3">
-            <div><div className="sub">Pool reserves</div><div style={{ fontWeight: 600 }}>{fmt(lp.data.reserveUsdc, 6, 0)} USDC<br />{fmt(lp.data.reserveUsdt, 6, 0)} USDT</div></div>
-            <div><div className="sub">Our share of the pool</div><div className="kpi" style={{ fontSize: 22 }}>{(lp.data.lpShareBps / 100).toFixed(2)}%</div></div>
-            <div><div className="sub">LP position value</div><div className="kpi" style={{ fontSize: 22 }}>{fmt(lp.data.lpValue, 6)}</div><div className="sub">USDC, fair value 2·√(x·y)</div></div>
+    <div className="allocation-grid">
+      <div className="card allocation-summary">
+        <div>
+          <h3>Two sources. One portfolio.</h3>
+          <p>Target capital allocation across networks.</p>
+        </div>
+        <div className="allocation-target">
+          <span className="source-badge">R</span>
+          <div>
+            <strong>Tokenized stocks</strong>
+            <small>Robinhood Testnet</small>
           </div>
+          <span>{PRODUCT.weights[PRODUCT.robinhood.chainId] / 100}%</span>
+        </div>
+        <div className="allocation-target">
+          <span className="source-badge blue">◇</span>
+          <div>
+            <strong>Stablecoin LP</strong>
+            <small>Ethereum Sepolia</small>
+          </div>
+          <span>{PRODUCT.weights[PRODUCT.sepolia.chainId] / 100}%</span>
+        </div>
+      </div>
+      <div className="card source-card">
+        <div className="source-heading">
+          <span className="source-badge">R</span>
+          <div>
+            <h3>Technology stock basket</h3>
+            <small>Robinhood Testnet</small>
+          </div>
+          <span className="pill">8 assets</span>
+        </div>
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th className="num">Target weight</th>
+                <th className="num">Pool price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {PRODUCT.robinhood.basket.map((b) => {
+                const live = holdings?.find(
+                  (h) => h.token.toLowerCase() === b.token.toLowerCase()
+                )
+                const weight = live?.weightBps ?? b.weightBps
+                return (
+                  <tr key={b.token}>
+                    <td className="stock-name">
+                      {b.symbol}
+                      <small>{b.name}</small>
+                    </td>
+                    <td className="num">
+                      {(weight / 100).toFixed(2)}%
+                      <div className="mini-bar">
+                        <i style={{ width: weight / 25 + '%' }} />
+                      </div>
+                    </td>
+                    <td className="num">
+                      {live ? '$' + wadToNumber(live.priceWad).toFixed(2) : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        {basket.isError && (
+          <p className="source-note">
+            Live basket prices are unavailable.{' '}
+            <button
+              className="btn sm"
+              disabled={basket.isFetching}
+              onClick={() => {
+                void basket.refetch()
+              }}
+            >
+              Retry
+            </button>
+          </p>
         )}
-        <p className="sub" style={{ marginBottom: 0 }}>A trading bot swaps against this pool around the clock; the 0.3% fee it pays accrues to the position. The same structure as Uniswap&apos;s USDC/USDT pool, with simulated volume.</p>
+        <p className="source-note">
+          Testnet tokens representing a technology stock basket. Weights shown
+          are configured targets, not guaranteed holdings.
+        </p>
+      </div>
+      <div className="card source-card">
+        <div className="source-heading">
+          <span className="source-badge blue">◇</span>
+          <div>
+            <h3>USDC / USDT liquidity</h3>
+            <small>Ethereum Sepolia</small>
+          </div>
+          <span className="pill">Stablecoin pair</span>
+        </div>
+        <div className="lp-visual" aria-hidden="true">
+          <span className="token-disc">$</span>
+          <span className="token-disc">₮</span>
+        </div>
+        <div className="lp-stats">
+          <div>
+            <small>LP position value</small>
+            <strong>{fmt(lp.data?.lpValue, 6)}</strong>
+            <small>USDC</small>
+          </div>
+          <div>
+            <small>Share of the pool</small>
+            <strong>{lp.data ? pct(lp.data.lpShareBps / 100) : '—'}</strong>
+          </div>
+          <div>
+            <small>USDC reserves</small>
+            <strong>{fmt(lp.data?.reserveUsdc, 6, 0)}</strong>
+          </div>
+          <div>
+            <small>USDT reserves</small>
+            <strong>{fmt(lp.data?.reserveUsdt, 6, 0)}</strong>
+          </div>
+        </div>
+        {lp.isError && (
+          <p className="source-note">
+            Pool data is unavailable.{' '}
+            <button
+              className="btn sm"
+              disabled={lp.isFetching}
+              onClick={() => {
+                void lp.refetch()
+              }}
+            >
+              Retry
+            </button>
+          </p>
+        )}
+        <p className="source-note">
+          A testnet constant-product pool with simulated trading volume. Swap
+          fees accrue to the LP position; they are not a guaranteed return.
+        </p>
+        <div className="source-data">
+          {sourcesUnavailable || !hubConfigured
+            ? 'Live capital allocation is not available.'
+            : sources.length === 0
+              ? 'Capital allocation will appear after the first recorded settlement.'
+              : sources.map((s) => (
+                  <div key={s.chainId + s.address}>
+                    {s.chainId === PRODUCT.robinhood.chainId
+                      ? 'Stock basket'
+                      : 'Stablecoin LP'}
+                    : {fmt(s.principal, dec)} USDC · {pct(s.sharePct)} of
+                    recorded principal
+                  </div>
+                ))}
+        </div>
       </div>
     </div>
   )

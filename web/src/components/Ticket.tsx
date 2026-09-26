@@ -1,100 +1,424 @@
 'use client'
-import { useMemo, useState } from 'react'
-import { parseUnits } from 'viem'
-import { useAccount, usePublicClient, useSwitchChain, useWalletClient } from 'wagmi'
+import { useState } from 'react'
+import { formatUnits, type Hex } from 'viem'
+import { useAccount, useConfig, useSwitchChain } from 'wagmi'
+import { getWalletClient } from 'wagmi/actions'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAppKit } from '@reown/appkit/react'
 import type { Product, Settlement } from '@/lib/reads'
-import { deposit, redeem, claim, toActionError } from '@/lib/writes'
-import { chainLabel } from '@/lib/chains'
-import { fmt } from '@/lib/math'
+import {
+  deposit,
+  redeem,
+  claim,
+  toActionError,
+  ActionError
+} from '@/lib/writes'
+import { chainLabel, client, txUrl } from '@/lib/chains'
+import { fmt, parseTokenAmount } from '@/lib/math'
 import { useAccountData } from '@/hooks/data'
+import { PRODUCT } from '@/lib/product'
+import { Icon } from './Icon'
 
 type Mode = 'invest' | 'redeem'
-
-/** Invest/redeem ticket — pick a tranche (Senior/Junior) and network, enter an amount, request against the spoke vault. */
-export function Ticket({ product, last }: { product: Product; last: Settlement | null }) {
+type Context = Parameters<typeof deposit>[0]
+export function Ticket({
+  product,
+  last,
+  type,
+  onTypeChange,
+  onBusyChange
+}: {
+  product?: Product
+  last: Settlement | null
+  type: 'Senior' | 'Junior'
+  onTypeChange: (v: 'Senior' | 'Junior') => void
+  onBusyChange: (busy: boolean) => void
+}) {
   const { address, chainId: walletChain } = useAccount()
+  const config = useConfig()
   const { open } = useAppKit()
   const { switchChainAsync } = useSwitchChain()
-  const { data: wallet } = useWalletClient()
   const qc = useQueryClient()
   const acct = useAccountData()
   const [mode, setMode] = useState<Mode>('invest')
-  const [type, setType] = useState<'Senior' | 'Junior'>('Senior')
-  const [chain, setChain] = useState<number>(product.depositChains[0] ?? product.tranches[0]?.chainId)
+  const [chain, setChain] = useState<number>(PRODUCT.entryChains[0])
   const [amt, setAmt] = useState('')
   const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState<{ ok?: string; err?: string } | null>(null)
-  const pub = usePublicClient({ chainId: chain })
-
-  const tranche = useMemo(() => product.tranches.find((t) => t.type === type && t.chainId === chain), [product, type, chain])
+  const [stage, setStage] = useState('')
+  const [msg, setMsg] = useState<{
+    label?: string
+    hash?: Hex
+    chain?: number
+    err?: string
+  } | null>(null)
+  const tranche = product?.tranches.find(
+    (t) => t.type === type && t.chainId === chain
+  )
   const pos = acct.data?.positions.find((p) => p.index === tranche?.index)
   const price = last && tranche ? last.sharePrices[tranche.index] : null
-  const dec = product.decimals
-  const raw = (() => { try { return amt ? parseUnits(amt, dec) : 0n } catch { return 0n } })()
-  const est = price && price > 0n ? (mode === 'invest' ? (raw * 10n ** 18n) / price : (raw * price) / 10n ** 18n) : null
+  const dec = product?.decimals ?? 6
+  const raw = parseTokenAmount(amt, dec)
+  const invalid = amt !== '' && raw == null
+  const est =
+    price && price > 0n && raw != null
+      ? mode === 'invest'
+        ? (raw * 10n ** 18n) / price
+        : (raw * price) / 10n ** 18n
+      : null
   const balance = mode === 'invest' ? acct.data?.balances[chain] : pos?.shares
-  const eligible = acct.data?.eligible
+  const eligible = tranche ? acct.data?.eligibility[tranche.index] : undefined
+  const tooMuch = raw != null && balance != null && raw > balance
+  const ready =
+    !!tranche &&
+    raw != null &&
+    raw > 0n &&
+    balance != null &&
+    !tooMuch &&
+    (mode !== 'invest' || eligible === true) &&
+    !acct.isError
+  const networks = product
+    ? [...new Set(product.tranches.map((t) => t.chainId))]
+    : PRODUCT.entryChains
+  const messageUrl = msg?.hash && msg.chain ? txUrl(msg.chain, msg.hash) : null
 
-  async function run(fn: () => Promise<`0x${string}`>, label: string) {
-    setBusy(true); setMsg(null)
-    try {
-      if (walletChain !== chain) await switchChainAsync({ chainId: chain })
-      const hash = await fn()
-      setMsg({ ok: `${label} submitted · ${hash.slice(0, 10)}…` })
-      setAmt('')
-      qc.invalidateQueries({ queryKey: ['account'] }); qc.invalidateQueries({ queryKey: ['activity'] })
-    } catch (e) { setMsg({ err: toActionError(e).message }) } finally { setBusy(false) }
+  function changeMode(value: Mode) {
+    setMode(value)
+    setAmt('')
+    setMsg(null)
   }
-  const ctx = () => ({ wallet: wallet!, pub: pub!, me: address! })
+  async function run(operation: (ctx: Context) => Promise<Hex>, label: string) {
+    if (!address || !tranche || busy) return
+    const me = address
+    setBusy(true)
+    onBusyChange(true)
+    setMsg(null)
+    setStage('Preparing transaction…')
+    try {
+      if (walletChain !== chain) {
+        setStage('Switch network in your wallet…')
+        await switchChainAsync({ chainId: chain })
+      }
+      // Re-acquire the client after switching; the hook's previous render can still reference the old chain.
+      const wallet = await getWalletClient(config, { chainId: chain })
+      if (
+        wallet.account.address.toLowerCase() !== me.toLowerCase() ||
+        (await wallet.getChainId()) !== chain
+      )
+        throw new ActionError(
+          'ACCOUNT_CHANGED',
+          'Wallet account or network changed. Please try again.'
+        )
+      const hash = await operation({
+        wallet,
+        pub: client(chain),
+        me,
+        onProgress: setStage
+      })
+      setMsg({ label: label + ' confirmed', hash, chain })
+      setAmt('')
+      await Promise.all(
+        ['account', 'activity', 'receives'].map((key) =>
+          qc.invalidateQueries({ queryKey: [key] })
+        )
+      )
+    } catch (e) {
+      setMsg({ err: toActionError(e).message })
+    } finally {
+      setBusy(false)
+      onBusyChange(false)
+      setStage('')
+    }
+  }
 
-  if (!tranche) return null
+  const buttonText = busy
+    ? stage
+    : !product
+      ? 'Waiting for network data'
+      : !tranche
+        ? 'Tranche unavailable'
+        : acct.isError
+          ? 'Account data unavailable'
+          : eligible === false && mode === 'invest'
+            ? 'Get access below to deposit'
+            : balance == null || (mode === 'invest' && eligible == null)
+              ? 'Checking your account…'
+              : tooMuch
+                ? 'Insufficient balance'
+                : invalid
+                  ? 'Check amount'
+                  : !raw
+                    ? 'Enter an amount'
+                    : walletChain !== chain
+                      ? 'Switch network to continue'
+                      : mode === 'invest'
+                        ? 'Request deposit'
+                        : 'Request redemption'
   return (
-    <div className="card">
-      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-        <div className="seg">
-          <button className={mode === 'invest' ? 'on' : ''} onClick={() => setMode('invest')}>Invest</button>
-          <button className={mode === 'redeem' ? 'on' : ''} onClick={() => setMode('redeem')}>Redeem</button>
+    <section className="card ticket" id="invest" aria-label="Investment ticket">
+      <div className="ticket-header">
+        <div className="ticket-heading">
+          <h2>Your next move</h2>
+          <Icon name="layers" size={18} />
         </div>
-        <div className="seg">
-          <button className={type === 'Senior' ? 'on' : ''} onClick={() => setType('Senior')}>Senior</button>
-          <button className={type === 'Junior' ? 'on' : ''} onClick={() => setType('Junior')}>Junior</button>
+        <div className="seg" role="group" aria-label="Transaction type">
+          <button
+            aria-pressed={mode === 'invest'}
+            disabled={busy}
+            className={mode === 'invest' ? 'on' : ''}
+            onClick={() => changeMode('invest')}
+          >
+            Deposit
+          </button>
+          <button
+            aria-pressed={mode === 'redeem'}
+            disabled={busy}
+            className={mode === 'redeem' ? 'on' : ''}
+            onClick={() => changeMode('redeem')}
+          >
+            Redeem
+          </button>
         </div>
       </div>
-      <label className="sub">Network</label>
-      <div className="row" style={{ marginBottom: 10 }}>
-        <select value={chain} onChange={(e) => setChain(Number(e.target.value))}>
-          {product.depositChains.map((c) => <option key={c} value={c}>{chainLabel(c)}</option>)}
-        </select>
-        {address && <span className="sub">{mode === 'invest' ? 'USDC' : 'shares'} on this network: {fmt(balance, dec)}</span>}
-      </div>
-      <input className="amt" inputMode="decimal" placeholder="0.00" value={amt} onChange={(e) => setAmt(e.target.value.replace(/[^0-9.]/g, ''))} />
-      <div className="row" style={{ justifyContent: 'space-between', margin: '8px 0 12px' }}>
-        <span className="sub">{mode === 'invest' ? 'Est. shares' : 'Est. USDC'}: {est != null ? fmt(est, dec, 4) : '—'} <span className="muted">(at last settlement price)</span></span>
-        {balance != null && <button className="btn sm" onClick={() => setAmt(fmt(balance, dec, dec).replace(/,/g, ''))}>Max</button>}
-      </div>
-      {!address ? <button className="btn primary" style={{ width: '100%' }} onClick={() => open()}>Connect wallet</button>
-        : eligible === false && mode === 'invest' ? <button className="btn" style={{ width: '100%' }} disabled>Not whitelisted yet — see Access below</button>
-        : <button className="btn primary" style={{ width: '100%' }} disabled={busy || raw === 0n || !wallet}
-            onClick={() => run(() => (mode === 'invest' ? deposit(ctx(), tranche, raw) : redeem(ctx(), tranche, raw)), mode === 'invest' ? 'Deposit request' : 'Redeem request')}>
-            {busy ? 'Confirm in wallet…' : mode === 'invest' ? 'Request deposit' : 'Request redeem'}
-          </button>}
-      {pos && (pos.deposit.claimable > 0n || pos.redeem.claimable > 0n) && (
-        <div className="row" style={{ marginTop: 10 }}>
-          {pos.deposit.claimable > 0n && <button className="btn sm" disabled={busy} onClick={() => run(() => claim(ctx(), tranche, 'deposit'), 'Claim shares')}>Claim {fmt(pos.deposit.claimable, dec)} shares</button>}
-          {pos.redeem.claimable > 0n && <button className="btn sm" disabled={busy} onClick={() => run(() => claim(ctx(), tranche, 'redeem'), 'Claim USDC')}>Claim {fmt(pos.redeem.claimable, dec)} USDC</button>}
+      <div className="ticket-body">
+        <div className="field-label">Choose your tranche</div>
+        <div className="tranche-toggle" role="group" aria-label="Tranche">
+          <button
+            disabled={busy}
+            aria-pressed={type === 'Senior'}
+            className={type === 'Senior' ? 'on' : ''}
+            onClick={() => {
+              onTypeChange('Senior')
+              setMsg(null)
+            }}
+          >
+            <Icon name="shield" size={15} />
+            Senior
+          </button>
+          <button
+            disabled={busy}
+            aria-pressed={type === 'Junior'}
+            className={'junior' + (type === 'Junior' ? ' on' : '')}
+            onClick={() => {
+              onTypeChange('Junior')
+              setMsg(null)
+            }}
+          >
+            <Icon name="chart" size={15} />
+            Junior
+          </button>
         </div>
-      )}
-      {pos && (pos.deposit.pending > 0n || pos.redeem.pending > 0n) && (
-        <p className="sub" style={{ marginBottom: 0 }}>
-          {pos.deposit.pending > 0n && <>Deposit of {fmt(pos.deposit.pending, dec)} USDC is {STAGE[pos.deposit.stage ?? 'queued']}. </>}
-          {pos.redeem.pending > 0n && <>Redeem of {fmt(pos.redeem.pending, dec)} shares is {STAGE[pos.redeem.stage ?? 'queued']}.</>}
+        <p className="tranche-description">
+          {type === 'Senior'
+            ? 'Priority yield. Junior capital absorbs losses before Senior.'
+            : 'Residual yield. Junior capital takes losses before Senior.'}
         </p>
-      )}
-      {msg?.ok && <p className="okmsg">{msg.ok}</p>}
-      {msg?.err && <p className="err">{msg.err}</p>}
-    </div>
+        <div className="field-label">
+          <label htmlFor="deposit-network">Network</label>
+        </div>
+        <div className="network-select">
+          <span className="network-coin">◇</span>
+          <select
+            id="deposit-network"
+            value={chain}
+            disabled={busy}
+            onChange={(e) => {
+              setChain(Number(e.target.value))
+              setAmt('')
+              setMsg(null)
+            }}
+          >
+            {networks.map((c) => (
+              <option key={c} value={c}>
+                {chainLabel(c)}
+              </option>
+            ))}
+          </select>
+          <span className="pill">Testnet</span>
+        </div>
+        <div className="field-label">
+          <label htmlFor="transaction-amount">
+            {mode === 'invest' ? 'Deposit amount' : 'Shares to redeem'}
+          </label>
+        </div>
+        <div className="amount-box">
+          <div className="amount-row">
+            <input
+              id="transaction-amount"
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="0.00"
+              value={amt}
+              disabled={busy}
+              aria-invalid={invalid || tooMuch}
+              aria-describedby="amount-help estimate-help"
+              onChange={(e) => {
+                setAmt(e.target.value)
+                setMsg(null)
+              }}
+            />
+            <span className="token-label">
+              {mode === 'invest' && <span className="usdc-symbol">$</span>}
+              {mode === 'invest' ? 'USDC' : 'shares'}
+            </span>
+          </div>
+          <div className="amount-meta">
+            <span>Balance: {address ? fmt(balance, dec, 4) : '—'}</span>
+            <button
+              className="max-button"
+              disabled={busy || balance == null}
+              onClick={() =>
+                balance != null && setAmt(formatUnits(balance, dec))
+              }
+            >
+              MAX
+            </button>
+          </div>
+        </div>
+        <div id="amount-help">
+          {invalid && (
+            <p className="err">
+              Enter a positive amount with up to {dec} decimal places.
+            </p>
+          )}
+          {tooMuch && (
+            <p className="err">This amount exceeds your available balance.</p>
+          )}
+        </div>
+        <div className="estimate-row">
+          <span>You receive (estimated)</span>
+          <strong>
+            {fmt(est, dec, 4)} {mode === 'invest' ? 'shares' : 'USDC'}
+          </strong>
+        </div>
+        <p className="estimate-note" id="estimate-help">
+          Based on the last settlement price. Final amounts are set at
+          settlement.
+        </p>
+        {!address ? (
+          <button className="btn primary full" onClick={() => open()}>
+            <Icon name="wallet" size={16} />
+            Connect wallet
+          </button>
+        ) : (
+          <button
+            className="btn primary full"
+            disabled={busy || !ready}
+            onClick={() =>
+              tranche &&
+              raw != null &&
+              run(
+                (ctx) =>
+                  mode === 'invest'
+                    ? deposit(ctx, tranche, raw)
+                    : redeem(ctx, tranche, raw),
+                mode === 'invest' ? 'Deposit request' : 'Redemption request'
+              )
+            }
+          >
+            {buttonText}
+            {ready && !busy && <Icon name="arrow" size={16} />}
+          </button>
+        )}
+        {acct.isError && address && (
+          <button
+            className="text-link"
+            style={{ background: 'none', border: 0, marginTop: 10 }}
+            disabled={busy || acct.isFetching}
+            onClick={() => {
+              void acct.refetch()
+            }}
+          >
+            Retry account data
+          </button>
+        )}
+        {pos &&
+          tranche &&
+          (pos.deposit.claimable > 0n || pos.redeem.claimable > 0n) && (
+            <div className="claims-box">
+              <h3>Ready to claim</h3>
+              {pos.deposit.claimable > 0n && (
+                <div className="claim-row">
+                  <span>{fmt(pos.deposit.claimable, dec)} USDC deposited</span>
+                  <button
+                    className="btn sm"
+                    disabled={busy}
+                    onClick={() =>
+                      run(
+                        (ctx) => claim(ctx, tranche, 'deposit'),
+                        'Share claim'
+                      )
+                    }
+                  >
+                    Claim shares
+                  </button>
+                </div>
+              )}
+              {pos.redeem.claimable > 0n && (
+                <div className="claim-row">
+                  <span>{fmt(pos.redeem.claimable, dec)} shares redeemed</span>
+                  <button
+                    className="btn sm"
+                    disabled={busy}
+                    onClick={() =>
+                      run((ctx) => claim(ctx, tranche, 'redeem'), 'USDC claim')
+                    }
+                  >
+                    Claim USDC
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        {pos && (pos.deposit.pending > 0n || pos.redeem.pending > 0n) && (
+          <p className="pending-note">
+            {pos.deposit.pending > 0n && (
+              <>
+                Deposit of {fmt(pos.deposit.pending, dec)} USDC is{' '}
+                {STAGE[pos.deposit.stage ?? 'queued']}.{' '}
+              </>
+            )}
+            {pos.redeem.pending > 0n && (
+              <>
+                Redemption of {fmt(pos.redeem.pending, dec)} shares is{' '}
+                {STAGE[pos.redeem.stage ?? 'queued']}.
+              </>
+            )}
+          </p>
+        )}
+        <div aria-live="polite" aria-atomic="true">
+          {busy && <p className="sub">{stage}</p>}
+          {msg?.label && (
+            <p className="okmsg transaction-message">
+              {msg.label}.{' '}
+              {messageUrl && (
+                <a href={messageUrl} target="_blank" rel="noreferrer">
+                  View transaction <Icon name="external" size={11} />
+                </a>
+              )}
+            </p>
+          )}
+          {msg?.err && (
+            <p className="err transaction-message" role="alert">
+              {msg.err}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="ticket-foot">
+        <Icon name="clock" size={15} />
+        <span>
+          {mode === 'invest'
+            ? 'Request → settlement → claim shares.'
+            : 'Request → settlement → claim USDC.'}{' '}
+          Funds are not available instantly.
+        </span>
+      </div>
+    </section>
   )
 }
-const STAGE: Record<string, string> = { bridging: 'bridging to the hub', queued: 'waiting for the next settlement', settlement: 'being finalized after settlement', receivable: 'ready to claim' }
+const STAGE: Record<string, string> = {
+  bridging: 'on its way to settlement',
+  queued: 'waiting for the next settlement',
+  settlement: 'being finalized',
+  receivable: 'ready to claim'
+}
