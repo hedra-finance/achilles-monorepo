@@ -1,6 +1,6 @@
 'use client'
-import Image from 'next/image'
 import { AmbientMotion } from './Motion'
+import { LogoSurface } from './LogoSurface'
 import { Icon } from './Icon'
 import { PRODUCT } from '@/lib/product'
 
@@ -159,16 +159,7 @@ export function YieldFlow({
           <span className="flow-caption">
             <span>02</span> ONE STRUCTURING LAYER
           </span>
-          <div className="engine-art">
-            <Image
-              src="/brand/achilles.png"
-              alt="Achilles"
-              width={1302}
-              height={998}
-              priority
-              sizes="(max-width: 760px) 250px, 350px"
-            />
-          </div>
+          <LogoSurface />
           <p>
             Many sources.
             <br />

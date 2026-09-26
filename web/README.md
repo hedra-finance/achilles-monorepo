@@ -70,8 +70,8 @@ The gas helper accepts investor permission on either configured Sepolia tranche.
 
 ## Motion and loading
 
-The landing introduces sources, the structuring layer and tranches in sequence, with a slow light current along available source connections. Sections reveal once as they enter view. Ambient effects pause when their visual is offscreen or the tab is hidden.
+The landing introduces sources, the structuring layer and tranches in sequence, with a slow light current along available source connections. The central logo remains stationary; a short, masked metallic reflection repeats with a quiet pause and responds to a mouse pointer. Sections reveal once as they enter view. Ambient effects pause when their visual is offscreen or the tab is hidden.
 
 React/Next view transitions connect pages and crossfade the Allocation, Holdings and Prices panels without replacing investment form state. Navigation uses the router's pending state; route skeletons and initial data placeholders retain the surrounding layout. Background refetches keep existing values visible. Unsupported browsers retain normal navigation with a short entry fade.
 
-Controls use brief hover/press feedback; expandable content, transaction status and chart panels have restrained entrance transitions. The visible Pause motion control and the system's reduced-motion setting disable animation, including native page transitions and smooth scrolling. No animation delays transaction submission or fabricates market values.
+FAQ answers expand and collapse as one clipped grid track, including their spacing; rapid toggles reverse the same transition. Controls use brief hover/press feedback; expandable content, transaction status and chart panels have restrained entrance transitions. The visible Pause motion control and the system's reduced-motion setting disable animation, including native page transitions and smooth scrolling. No animation delays transaction submission or fabricates market values.

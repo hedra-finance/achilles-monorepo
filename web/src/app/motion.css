@@ -231,8 +231,31 @@ body:has([data-navigation-pending='true'], [data-route-loading='true'])
   animation: capital-stream 4.8s linear infinite;
   opacity: 0.7;
 }
-.engine-art img {
-  animation: helmet-drift 7s ease-in-out infinite;
+.logo-surface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.logo-auto-light {
+  opacity: 0.5;
+  transition: opacity 450ms ease;
+}
+.logo-reflection {
+  transform: translateX(-100%);
+  animation: metal-reflection 7s ease-in-out infinite;
+}
+.logo-pointer-light {
+  opacity: 0;
+  transition: opacity 450ms ease;
+}
+.engine-art[data-illuminated='true'] .logo-auto-light {
+  opacity: 0.12;
+}
+.engine-art[data-illuminated='true'] .logo-pointer-light {
+  opacity: 0.75;
 }
 .engine-art:before {
   animation: engine-glow 7s ease-in-out infinite;
@@ -248,13 +271,14 @@ body:has([data-navigation-pending='true'], [data-route-loading='true'])
     stroke-dashoffset: -100;
   }
 }
-@keyframes helmet-drift {
+@keyframes metal-reflection {
   0%,
-  100% {
-    translate: 0 0;
+  12% {
+    transform: translateX(-100%);
   }
-  50% {
-    translate: 0 -6px;
+  38%,
+  100% {
+    transform: translateX(100%);
   }
 }
 @keyframes engine-glow {
@@ -277,7 +301,7 @@ body:has([data-navigation-pending='true'], [data-route-loading='true'])
   }
 }
 [data-ambient='paused'] .flow-current,
-[data-ambient='paused'] .engine-art img,
+[data-ambient='paused'] .logo-reflection,
 [data-ambient='paused'] .engine-art:before {
   animation-play-state: paused;
 }
@@ -412,24 +436,20 @@ html[data-page-visible='false'] *::after {
 .landing-nav.open {
   animation: panel-arrive 220ms var(--motion-ease) both;
 }
-.landing-faq summary > span,
 .round-button > svg,
 .liquidity-panel summary > svg {
   transition: transform 220ms var(--motion-ease);
 }
-.landing-faq details[open] > p,
 .investment-access[open] > :not(summary),
 .liquidity-panel[open] > :not(summary) {
   animation: panel-arrive 220ms var(--motion-ease) both;
 }
 @supports (interpolate-size: allow-keywords) and
   selector(details::details-content) {
-  .landing-faq details,
   .liquidity-panel,
   .investment-access {
     interpolate-size: allow-keywords;
   }
-  .landing-faq details::details-content,
   .liquidity-panel::details-content,
   .investment-access::details-content {
     block-size: 0;
@@ -440,7 +460,6 @@ html[data-page-visible='false'] *::after {
       opacity 180ms,
       content-visibility 280ms allow-discrete;
   }
-  .landing-faq details[open]::details-content,
   .liquidity-panel[open]::details-content,
   .investment-access[open]::details-content {
     block-size: auto;
@@ -776,6 +795,9 @@ html[data-motion='paused'] *::after {
   animation: none !important;
   transition: none !important;
 }
+html[data-motion='paused'] .logo-surface {
+  visibility: hidden;
+}
 html[data-motion='paused'] [data-reveal] {
   opacity: 1;
   translate: none;
@@ -787,6 +809,9 @@ html[data-motion='paused']::view-transition-group(*) {
   animation-delay: 0s !important;
 }
 @media (prefers-reduced-motion: reduce) {
+  .logo-surface {
+    visibility: hidden;
+  }
   html {
     scroll-behavior: auto;
   }
