@@ -10,6 +10,7 @@ import { RiskExplainer } from './RiskExplainer'
 import { StockLogo } from './StockLogo'
 import { MotionToggle } from './Motion'
 import { LoadingValue } from './Skeleton'
+import { FaqItem } from './FaqItem'
 import { Icon } from './Icon'
 
 const QUESTIONS = [
@@ -458,13 +459,7 @@ export function Landing() {
         </div>
         <div>
           {QUESTIONS.map(([question, answer]) => (
-            <details key={question}>
-              <summary>
-                {question}
-                <span aria-hidden="true">+</span>
-              </summary>
-              <p>{answer}</p>
-            </details>
+            <FaqItem key={question} question={question} answer={answer} />
           ))}
         </div>
       </section>

@@ -517,34 +517,68 @@
   grid-template-columns: 0.85fr 1.3fr;
   gap: 70px;
 }
-.landing-faq details {
+.faq-item {
   border-bottom: 1px solid #263d52;
 }
-.landing-faq summary {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  justify-content: space-between;
+.landing-faq .faq-heading {
+  margin: 0;
   font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.faq-heading > button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
   padding: 22px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
-  list-style: none;
 }
-.landing-faq summary::-webkit-details-marker {
-  display: none;
-}
-.landing-faq summary > span {
+.faq-heading > button > span {
   color: #79bdf2;
   font-size: 22px;
+  flex-shrink: 0;
+  transition: transform 320ms ease;
 }
-.landing-faq details[open] summary > span {
+.faq-item[data-open='true'] .faq-heading > button > span {
   transform: rotate(45deg);
 }
-.landing-faq details > p {
+/* Keep the answer's padding inside the clipped track so it cannot jump. */
+.faq-answer {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows 320ms ease,
+    visibility 0s linear 320ms;
+}
+.faq-item[data-open='true'] .faq-answer {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.faq-answer-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+.faq-answer p {
+  margin: 0;
+  padding: 0 28px 24px 0;
+  max-width: 608px;
   font-size: 13px;
   line-height: 1.9;
-  margin-bottom: 24px;
-  max-width: 580px;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.faq-item[data-open='true'] .faq-answer p {
+  opacity: 1;
 }
 .landing-final {
   text-align: center;
@@ -1236,10 +1270,10 @@
   .landing-vision > p {
     font-size: 10px;
   }
-  .landing-faq summary {
+  .landing-faq .faq-heading {
     font-size: 13px;
   }
-  .landing-faq details > p {
+  .faq-answer p {
     font-size: 12px;
   }
   .landing-final {
