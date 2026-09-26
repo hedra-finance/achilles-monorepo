@@ -1,6 +1,6 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
-import { useAccount } from 'wagmi'
+import { useWalletAccount } from '@/hooks/wallet'
 import type { Address } from 'viem'
 import * as R from '@/lib/reads'
 import { hubConfigured } from '@/lib/chains'
@@ -54,29 +54,13 @@ export function useLp() {
   })
 }
 export function useAccountData() {
-  const { address } = useAccount()
+  const { address } = useWalletAccount()
   const { data: p } = useProduct()
   return useQuery({
     queryKey: ['account', address, !!p],
     enabled: !!p && !!address,
     refetchInterval: POLL,
-    queryFn: async () => {
-      const [positions, permissions, balances] = await Promise.all([
-        R.position(p!, address!),
-        Promise.all(
-          p!.tranches.map((t) => R.canDeposit(p!, address!, t.index))
-        ),
-        R.assetBalances(p!, address!)
-      ])
-      const eligibility = Object.fromEntries(
-        p!.tranches.map((t, i) => [t.index, permissions[i]])
-      ) as Record<number, boolean>
-      return {
-        positions,
-        eligibility,
-        balances
-      }
-    }
+    queryFn: () => R.accountSnapshot(p!, address!)
   })
 }
 export function useActivity(address?: Address) {

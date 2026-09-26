@@ -7,16 +7,28 @@ import {
   type WalletClient,
   type PublicClient
 } from 'viem'
-import { vaultAbi, erc20Abi } from './abi'
+import { vaultAbi, erc20Abi } from './abi.ts'
 import type { Tranche } from './reads'
 
 export class ActionError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly cause?: unknown
-  ) {
+  readonly code: string
+  readonly cause?: unknown
+  constructor(code: string, message: string, cause?: unknown) {
     super(message)
+    this.code = code
+    this.cause = cause
+  }
+}
+export class PendingTransactionError extends ActionError {
+  readonly hash: Hex
+  readonly phase: 'approval' | 'transaction'
+  constructor(hash: Hex, phase: 'approval' | 'transaction') {
+    super(
+      'CONFIRMATION_PENDING',
+      'Transaction sent, but confirmation is not available yet. Check its status before submitting again.'
+    )
+    this.hash = hash
+    this.phase = phase
   }
 }
 const MESSAGES: Record<string, string> = {
@@ -66,14 +78,65 @@ type Ctx = {
   pub: PublicClient
   me: Address
   onProgress?: (message: string) => void
+  onSubmitted?: (hash: Hex, phase: 'approval' | 'transaction') => void
+}
+
+async function checkWallet({ wallet, pub, me }: Ctx) {
+  const [accounts, chainId] = await Promise.all([
+    wallet.getAddresses(),
+    wallet.getChainId()
+  ])
+  if (
+    accounts[0]?.toLowerCase() !== me.toLowerCase() ||
+    chainId !== pub.chain?.id
+  )
+    throw new ActionError(
+      'ACCOUNT_CHANGED',
+      'Wallet account or network changed. Review your request again.'
+    )
+}
+
+/** A cancelled/replaced transaction is not a successful request, even if its replacement mined. */
+export async function confirmTransaction(
+  pub: PublicClient,
+  hash: Hex,
+  phase: 'approval' | 'transaction'
+) {
+  let replaced = false
+  let receipt
+  try {
+    receipt = await pub.waitForTransactionReceipt({
+      hash,
+      timeout: 60_000,
+      onReplaced: ({ reason }) => {
+        if (reason !== 'repriced') replaced = true
+      }
+    })
+  } catch {
+    throw new PendingTransactionError(hash, phase)
+  }
+  if (replaced)
+    throw new ActionError(
+      'REPLACED',
+      'The transaction was cancelled or replaced. Check your wallet and review the request again.'
+    )
+  if (receipt.status !== 'success')
+    throw new ActionError(
+      'REVERTED',
+      phase === 'approval'
+        ? 'Token approval reverted. No request was submitted.'
+        : 'The transaction reverted. Refresh your balance before retrying.'
+    )
+  return receipt.transactionHash
 }
 
 async function ensureAllowance(
-  { wallet, pub, me, onProgress }: Ctx,
+  ctx: Ctx,
   token: Address,
   spender: Address,
   amount: bigint
 ) {
+  const { wallet, pub, me, onProgress } = ctx
   const cur = await pub.readContract({
     address: token,
     abi: erc20Abi,
@@ -81,6 +144,7 @@ async function ensureAllowance(
     args: [me, spender]
   })
   if (cur >= amount) return
+  await checkWallet(ctx)
   onProgress?.('Approve token access in your wallet…')
   const hash = await wallet.writeContract({
     address: token,
@@ -90,10 +154,9 @@ async function ensureAllowance(
     account: me,
     chain: wallet.chain
   })
+  ctx.onSubmitted?.(hash, 'approval')
   onProgress?.('Waiting for approval confirmation…')
-  const receipt = await pub.waitForTransactionReceipt({ hash })
-  if (receipt.status !== 'success')
-    throw new ActionError('UNKNOWN', 'Token approval failed. Please try again.')
+  await confirmTransaction(pub, hash, 'approval')
   // A public node can still return the stale allowance right after the receipt — poll briefly until it updates.
   for (let i = 0; i < 12; i++) {
     if (
@@ -129,16 +192,15 @@ async function send(
       account: ctx.me
     })
     ctx.onProgress?.('Confirm the transaction in your wallet…')
+    await checkWallet(ctx)
     const hash = await ctx.wallet.writeContract({
       ...request,
       account: ctx.me,
       chain: ctx.wallet.chain
     })
+    ctx.onSubmitted?.(hash, 'transaction')
     ctx.onProgress?.('Waiting for transaction confirmation…')
-    const rc = await ctx.pub.waitForTransactionReceipt({ hash })
-    if (rc.status !== 'success')
-      throw new ActionError('UNKNOWN', MESSAGES.UNKNOWN)
-    return hash
+    return await confirmTransaction(ctx.pub, hash, 'transaction')
   } catch (e) {
     throw toActionError(e)
   }

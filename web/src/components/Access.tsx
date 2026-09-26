@@ -7,7 +7,8 @@ import type { WorldContext } from './WorldVerification'
 const WorldVerification = dynamic(() => import('./WorldVerification'), {
   ssr: false
 })
-import { useAccount, useSwitchChain } from 'wagmi'
+import { useSwitchChain } from 'wagmi'
+import { useWalletAccount } from '@/hooks/wallet'
 import { useAppKit } from '@reown/appkit/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { client, hubConfigured } from '@/lib/chains'
@@ -31,7 +32,7 @@ export function Access({
   onChooseJunior: () => void
   disabled?: boolean
 }) {
-  const { address, chainId } = useAccount()
+  const { address, chainId } = useWalletAccount()
   const { switchChainAsync } = useSwitchChain()
   const { open } = useAppKit()
   const qc = useQueryClient()
@@ -374,7 +375,7 @@ export function Access({
             {mode === 'redeem' && !hasAssets && (
               <p className="market-disclosure">
                 {shares === 0n
-                  ? 'No shares available in this layer. Check for a claimable deposit below.'
+                  ? 'No shares available in this layer. Check for a claimable deposit above.'
                   : 'Share balance is being checked.'}
               </p>
             )}

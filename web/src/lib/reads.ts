@@ -2,6 +2,8 @@
 import type { Address, Hex } from 'viem'
 import { client, hubClient, hub } from './chains'
 import { PRODUCT } from './product'
+import { readIndependently } from './partial-reads'
+import { shareRestrictionAbi } from './abi'
 
 /** Keeper cadence override, matching MC_INTERVAL_SECS on the settlement bot. */
 const requestedCadence = Number(process.env.NEXT_PUBLIC_SETTLE_SECS ?? 0)
@@ -41,7 +43,8 @@ export async function loadProduct(): Promise<Product> {
   }))
   const active = new Set(roster.filter((m) => m.weightBps > 0).map((m) => Number(m.chain_id)))
   const chains = [...new Set(ts.map((t) => t.chainId))]
-  const decimals = ts[0] ? Number(await client(ts[0].chainId).readContract({ address: ts[0].asset, abi: erc20Abi, functionName: 'decimals' })) : 6
+  const entry = ts.find(t => PRODUCT.entryChains.includes(t.chainId)) ?? ts[0]
+  const decimals = entry ? Number(await client(entry.chainId).readContract({ address: entry.asset, abi: erc20Abi, functionName: 'decimals' })) : 6
   return {
     baseAsset, valuation, decimals,
     // The pallet's window is what the product was registered with; the cadence users actually see is
@@ -114,8 +117,11 @@ export type TranchePosition = {
 
 /** Per-tranche balance, pending and claimable amounts — from the spoke 7540 views, staged using the hub's request progress. */
 export async function position(p: Product, user: Address): Promise<TranchePosition[]> {
-  const progs = await activeProgress(user).catch(() => [] as Progress[])
-  return Promise.all(p.tranches.map(async (t) => {
+  const progress = activeProgress(user).catch(() => [] as Progress[])
+  return Promise.all(p.tranches.map(t => tranchePosition(t, user, progress)))
+}
+
+async function tranchePosition(t: Tranche, user: Address, progress: Promise<Progress[]>): Promise<TranchePosition> {
     const c = client(t.chainId)
     const v = (fn: 'pendingDepositRequest' | 'claimableDepositRequest' | 'pendingRedeemRequest' | 'claimableRedeemRequest') =>
       c.readContract({ address: t.vault, abi: vaultAbi, functionName: fn, args: [0n, user] })
@@ -123,10 +129,11 @@ export async function position(p: Product, user: Address): Promise<TranchePositi
       c.readContract({ address: t.share, abi: erc20Abi, functionName: 'balanceOf', args: [user] }),
       v('pendingDepositRequest'), v('claimableDepositRequest'), v('pendingRedeemRequest'), v('claimableRedeemRequest'),
     ])
+    const progs = await progress
     const stage = (kind: RequestKind, pending: bigint, claimable: bigint): Stage => {
-      if (claimable > 0n) return 'receivable'
-      if (pending === 0n) return null
-      const pr = progs.find((x) => x.kind === kind && x.vault.toLowerCase() === t.vault.toLowerCase())
+      if (pending === 0n) return claimable > 0n ? 'receivable' : null
+      const matching = progs.filter((x) => x.kind === kind && x.vault.toLowerCase() === t.vault.toLowerCase())
+      const pr = matching.find(x => !x.settled) ?? matching.at(-1)
       return !pr ? 'queued' : pr.settled ? 'settlement' : pr.status === 'Completed' ? 'queued' : 'bridging'
     }
     return {
@@ -134,15 +141,47 @@ export async function position(p: Product, user: Address): Promise<TranchePositi
       deposit: { pending: pd, claimable: cd, stage: stage('deposit', pd, cd) },
       redeem: { pending: pr, claimable: cr, stage: stage('redeem', pr, cr) },
     }
-  }))
+}
+
+/** Independent chains and access reads must not erase a successfully read position. */
+export async function accountSnapshot(p: Product, user: Address) {
+  const progress = activeProgress(user).catch(() => [] as Progress[])
+  const indices = p.tranches.map(t => t.index)
+  const chains = [...new Set(p.tranches.map(t => t.chainId))]
+  const [positions, permissions, balances] = await Promise.all([
+    readIndependently(indices, index => tranchePosition(p.tranches.find(t => t.index === index)!, user, progress)),
+    readIndependently(indices, index => canDeposit(p, user, index)),
+    readIndependently(chains, chain => {
+      const t = p.tranches.find(t => t.chainId === chain)!
+      return client(chain).readContract({ address: t.asset, abi: erc20Abi, functionName: 'balanceOf', args: [user] })
+    })
+  ])
+  return {
+    positions: Object.values(positions.values) as TranchePosition[],
+    eligibility: permissions.values,
+    balances: balances.values,
+    issues: {
+      positions: positions.unavailable,
+      permissions: permissions.unavailable,
+      balances: balances.unavailable
+    }
+  }
 }
 
 export async function canDeposit(p: Product, user: Address, trancheIdx = 0): Promise<boolean> {
-  const t = p.tranches[trancheIdx]
-  return hubClient().readContract({
-    address: PERM, abi: permissionsAbi, functionName: 'is_tranche_investor',
-    args: [pid, { chain_id: BigInt(t.chainId), vault_address: t.vault }, user],
-  })
+  const t = p.tranches.find(t => t.index === trancheIdx)
+  if (!t) throw new Error('Tranche unavailable')
+  const [granted, restriction] = await Promise.all([
+    hubClient().readContract({
+      address: PERM, abi: permissionsAbi, functionName: 'is_tranche_investor',
+      args: [pid, { chain_id: BigInt(t.chainId), vault_address: t.vault }, user],
+    }),
+    client(t.chainId).readContract({
+      address: t.share, abi: shareRestrictionAbi, functionName: 'detectTransferRestriction',
+      args: ['0x0000000000000000000000000000000000000000', user, 0n]
+    })
+  ])
+  return granted && restriction === 0
 }
 
 export async function assetBalances(p: Product, user: Address): Promise<Record<number, bigint>> {

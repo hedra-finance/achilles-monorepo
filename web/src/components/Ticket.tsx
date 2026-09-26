@@ -1,8 +1,9 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MotionLink as Link } from '@/components/MotionLink'
 import { formatUnits, type Hex } from 'viem'
-import { useAccount, useConfig, useSwitchChain } from 'wagmi'
+import { useConfig, useSwitchChain } from 'wagmi'
+import { useWalletAccount } from '@/hooks/wallet'
 import { getWalletClient } from 'wagmi/actions'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAppKit } from '@reown/appkit/react'
@@ -12,18 +13,25 @@ import {
   redeem,
   claim,
   toActionError,
-  ActionError
+  ActionError,
+  PendingTransactionError,
+  confirmTransaction
 } from '@/lib/writes'
 import { chainLabel, client, txUrl } from '@/lib/chains'
 import { fmt, parseTokenAmount } from '@/lib/math'
 import { useAccountData } from '@/hooks/data'
 import { PRODUCT } from '@/lib/product'
+import {
+  parsePendingTransaction,
+  type PendingTransaction
+} from '@/lib/pending-transaction'
 import { LoadingValue } from './Skeleton'
 import { Icon } from './Icon'
 import { Access } from './Access'
 
 type Mode = 'invest' | 'redeem'
 type Context = Parameters<typeof deposit>[0]
+const pendingKey = `achilles:pending:${PRODUCT.idHex}`
 export function Ticket({
   product,
   initialMode = 'invest',
@@ -41,7 +49,7 @@ export function Ticket({
   onTypeChange: (v: 'Senior' | 'Junior') => void
   onBusyChange: (busy: boolean) => void
 }) {
-  const { address, chainId: walletChain } = useAccount()
+  const { address, chainId: walletChain } = useWalletAccount()
   const config = useConfig()
   const { open } = useAppKit()
   const { switchChainAsync } = useSwitchChain()
@@ -51,6 +59,37 @@ export function Ticket({
   const [chain, setChain] = useState<number>(PRODUCT.entryChains[0])
   const [amt, setAmt] = useState('')
   const [busy, setBusy] = useState(false)
+  const [pending, setPending] = useState<PendingTransaction | null>(null)
+  useEffect(() => {
+    const restore = () => {
+      try {
+        const saved = parsePendingTransaction(
+          localStorage.getItem(pendingKey),
+          PRODUCT.entryChains
+        )
+        setPending(saved)
+        onBusyChange(!!saved)
+      } catch {
+        /* Storage may be disabled; current-session confirmation still works. */
+      }
+    }
+    restore()
+    const sync = (event: StorageEvent) => {
+      if (event.key === pendingKey || event.key === null) restore()
+    }
+    window.addEventListener('storage', sync)
+    return () => window.removeEventListener('storage', sync)
+  }, [onBusyChange])
+  function rememberPending(value: PendingTransaction | null) {
+    setPending(value)
+    try {
+      if (value) localStorage.setItem(pendingKey, JSON.stringify(value))
+      else localStorage.removeItem(pendingKey)
+    } catch {
+      /* Wallet confirmation does not depend on browser storage. */
+    }
+  }
+  const locked = busy || !!pending
   const [reviewed, setReviewed] = useState<string | null>(null)
   const [stage, setStage] = useState('')
   const [msg, setMsg] = useState<{
@@ -78,11 +117,13 @@ export function Ticket({
   const tooMuch = raw != null && balance != null && raw > balance
   const ready =
     !!tranche &&
+    !!pos &&
     raw != null &&
     raw > 0n &&
     balance != null &&
     !tooMuch &&
     (mode !== 'invest' || eligible === true) &&
+    !pending &&
     !acct.isError
   const networks = PRODUCT.entryChains
   const messageUrl = msg?.hash && msg.chain ? txUrl(msg.chain, msg.hash) : null
@@ -95,8 +136,9 @@ export function Ticket({
     setMsg(null)
   }
   async function run(operation: (ctx: Context) => Promise<Hex>, label: string) {
-    if (!address || !tranche || busy) return
+    if (!address || !tranche || locked) return
     const me = address
+    let waiting = false
     setBusy(true)
     onBusyChange(true)
     setMsg(null)
@@ -120,8 +162,11 @@ export function Ticket({
         wallet,
         pub: client(chain),
         me,
-        onProgress: setStage
+        onProgress: setStage,
+        onSubmitted: (hash, phase) =>
+          rememberPending({ hash, phase, chain, owner: me, label })
       })
+      rememberPending(null)
       setMsg({ label: label + ' confirmed', hash, chain })
       setAmt('')
       await Promise.all(
@@ -130,12 +175,62 @@ export function Ticket({
         )
       )
     } catch (e) {
-      setMsg({ err: toActionError(e).message })
+      if (e instanceof PendingTransactionError) {
+        waiting = true
+        rememberPending({
+          hash: e.hash,
+          chain,
+          owner: me,
+          label,
+          phase: e.phase
+        })
+      } else {
+        rememberPending(null)
+        setMsg({ err: toActionError(e).message })
+      }
     } finally {
       setReviewed(null)
       setBusy(false)
-      onBusyChange(false)
+      onBusyChange(waiting)
       setStage('')
+    }
+  }
+
+  async function checkPending() {
+    if (!pending || busy) return
+    setBusy(true)
+    let waiting = true
+    try {
+      const hash = await confirmTransaction(
+        client(pending.chain),
+        pending.hash,
+        pending.phase
+      )
+      setMsg({
+        label:
+          pending.phase === 'approval'
+            ? 'Approval confirmed. Review your request to continue'
+            : `${pending.label} confirmed`,
+        hash,
+        chain: pending.chain
+      })
+      rememberPending(null)
+      setAmt('')
+      waiting = false
+      await Promise.all(
+        ['account', 'activity', 'receives', 'funding'].map((key) =>
+          qc.invalidateQueries({ queryKey: [key] })
+        )
+      )
+    } catch (error) {
+      if (!(error instanceof PendingTransactionError)) {
+        rememberPending(null)
+        setMsg({ err: toActionError(error).message })
+        waiting = false
+      }
+    } finally {
+      setBusy(false)
+      onBusyChange(waiting)
     }
   }
 
@@ -149,7 +244,7 @@ export function Ticket({
           ? 'Account data unavailable'
           : eligible === false && mode === 'invest'
             ? 'Complete access to deposit'
-            : balance == null || (mode === 'invest' && eligible == null)
+            : balance == null || !pos || (mode === 'invest' && eligible == null)
               ? 'Checking your account…'
               : tooMuch
                 ? 'Insufficient balance'
@@ -176,7 +271,7 @@ export function Ticket({
         <div className="seg" role="group" aria-label="Transaction type">
           <button
             aria-pressed={mode === 'invest'}
-            disabled={busy}
+            disabled={locked}
             className={mode === 'invest' ? 'on' : ''}
             onClick={() => changeMode('invest')}
           >
@@ -184,7 +279,7 @@ export function Ticket({
           </button>
           <button
             aria-pressed={mode === 'redeem'}
-            disabled={busy}
+            disabled={locked}
             className={mode === 'redeem' ? 'on' : ''}
             onClick={() => changeMode('redeem')}
           >
@@ -193,6 +288,35 @@ export function Ticket({
         </div>
       </div>
       <div className="ticket-body">
+        {pending && (
+          <div className="claims-box" role="status">
+            <h3>Confirmation pending</h3>
+            <p className="sub">
+              {pending.phase === 'approval' ? 'Token approval' : pending.label}{' '}
+              was sent for {pending.owner.slice(0, 6)}…{pending.owner.slice(-4)}
+              . Check confirmation before submitting another transaction.
+            </p>
+            <div className="row">
+              {txUrl(pending.chain, pending.hash) && (
+                <a
+                  className="text-link"
+                  target="_blank"
+                  rel="noreferrer"
+                  href={txUrl(pending.chain, pending.hash)!}
+                >
+                  View transaction
+                </a>
+              )}
+              <button
+                className="btn sm"
+                disabled={busy}
+                onClick={() => void checkPending()}
+              >
+                {busy ? 'Checking…' : 'Check confirmation'}
+              </button>
+            </div>
+          </div>
+        )}
         {pos &&
           tranche &&
           (pos.deposit.claimable > 0n || pos.redeem.claimable > 0n) && (
@@ -210,7 +334,7 @@ export function Ticket({
                   <span>{fmt(pos.deposit.claimable, dec)} USDC deposited</span>
                   <button
                     className="btn sm"
-                    disabled={busy}
+                    disabled={locked}
                     onClick={() =>
                       run(
                         (ctx) => claim(ctx, tranche, 'deposit'),
@@ -227,7 +351,7 @@ export function Ticket({
                   <span>{fmt(pos.redeem.claimable, dec)} shares redeemed</span>
                   <button
                     className="btn sm"
-                    disabled={busy}
+                    disabled={locked}
                     onClick={() =>
                       run((ctx) => claim(ctx, tranche, 'redeem'), 'USDC claim')
                     }
@@ -248,12 +372,12 @@ export function Ticket({
           type={type}
           mode={mode}
           shares={pos?.shares}
-          disabled={busy}
+          disabled={locked}
         />
         <div className="field-label">Choose your tranche</div>
         <div className="tranche-toggle" role="group" aria-label="Tranche">
           <button
-            disabled={busy}
+            disabled={locked}
             aria-pressed={type === 'Senior'}
             className={type === 'Senior' ? 'on' : ''}
             onClick={() => {
@@ -265,7 +389,7 @@ export function Ticket({
             Senior
           </button>
           <button
-            disabled={busy}
+            disabled={locked}
             aria-pressed={type === 'Junior'}
             className={'junior' + (type === 'Junior' ? ' on' : '')}
             onClick={() => {
@@ -290,7 +414,7 @@ export function Ticket({
           <select
             id="deposit-network"
             value={chain}
-            disabled={busy}
+            disabled={locked}
             onChange={(e) => {
               setChain(Number(e.target.value))
               setAmt('')
@@ -318,7 +442,7 @@ export function Ticket({
               autoComplete="off"
               placeholder="0.00"
               value={amt}
-              disabled={busy}
+              disabled={locked}
               aria-invalid={invalid || tooMuch}
               aria-describedby="amount-help estimate-help"
               onChange={(e) => {
@@ -335,7 +459,7 @@ export function Ticket({
             <span>Balance: {address ? fmt(balance, dec, 4) : '—'}</span>
             <button
               className="max-button"
-              disabled={busy || balance == null}
+              disabled={locked || balance == null}
               onClick={() =>
                 balance != null && setAmt(formatUnits(balance, dec))
               }
@@ -352,7 +476,7 @@ export function Ticket({
           {[25, 50, 75, 100].map((percent) => (
             <button
               key={percent}
-              disabled={busy || balance == null}
+              disabled={locked || balance == null}
               onClick={() => {
                 if (balance != null) {
                   setAmt(formatUnits((balance * BigInt(percent)) / 100n, dec))
@@ -410,7 +534,7 @@ export function Ticket({
             <button
               className="text-link"
               onClick={() => setReviewed(null)}
-              disabled={busy}
+              disabled={locked}
             >
               Edit request
             </button>
@@ -425,38 +549,45 @@ export function Ticket({
           <button
             className="btn primary full"
             aria-busy={busy}
-            disabled={busy || !ready}
-            onClick={() =>
-              !reviewing
-                ? setReviewed(reviewKey)
-                : tranche &&
-                  raw != null &&
-                  run(
-                    (ctx) =>
-                      mode === 'invest'
-                        ? deposit(ctx, tranche, raw)
-                        : redeem(ctx, tranche, raw),
-                    mode === 'invest' ? 'Deposit request' : 'Redemption request'
-                  )
-            }
+            disabled={locked || !ready}
+            onClick={() => {
+              if (!reviewing) {
+                setMsg(null)
+                setReviewed(reviewKey)
+              } else if (tranche && raw != null) {
+                void run(
+                  (ctx) =>
+                    mode === 'invest'
+                      ? deposit(ctx, tranche, raw)
+                      : redeem(ctx, tranche, raw),
+                  mode === 'invest' ? 'Deposit request' : 'Redemption request'
+                )
+              }
+            }}
           >
             {busy && <span className="busy-spinner" aria-hidden="true" />}
             {buttonText}
             {ready && !busy && <Icon name="arrow" size={16} />}
           </button>
         )}
-        {acct.isError && address && (
-          <button
-            className="text-link"
-            style={{ background: 'none', border: 0, marginTop: 10 }}
-            disabled={busy || acct.isFetching}
-            onClick={() => {
-              void acct.refetch()
-            }}
-          >
-            Retry account data
-          </button>
-        )}
+        {(acct.isError ||
+          (acct.data &&
+            tranche &&
+            (acct.data.issues.positions.includes(tranche.index) ||
+              acct.data.issues.permissions.includes(tranche.index) ||
+              acct.data.issues.balances.includes(chain)))) &&
+          address && (
+            <button
+              className="text-link"
+              style={{ background: 'none', border: 0, marginTop: 10 }}
+              disabled={locked || acct.isFetching}
+              onClick={() => {
+                void acct.refetch()
+              }}
+            >
+              Retry account data
+            </button>
+          )}
         {pos && (pos.deposit.pending > 0n || pos.redeem.pending > 0n) && (
           <p className="pending-note">
             {pos.deposit.pending > 0n && (

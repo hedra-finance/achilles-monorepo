@@ -2,7 +2,7 @@
 import Image from 'next/image'
 import { MotionLink as Link } from '@/components/MotionLink'
 import { useState } from 'react'
-import { useAccount } from 'wagmi'
+import { useWalletAccount } from '@/hooks/wallet'
 import { useProduct, useOverview, useAccountData } from '@/hooks/data'
 import { NavChart } from '@/components/NavChart'
 import { PoolActivity } from '@/components/PoolActivity'
@@ -29,7 +29,7 @@ export function ProductDetail({
   const product = useProduct()
   const ov = useOverview()
   const acct = useAccountData()
-  const { address } = useAccount()
+  const { address } = useWalletAccount()
   const [selected, setSelected] = useState<RiskLayer>(initialLayer)
   const [transactionBusy, setTransactionBusy] = useState(false)
   const p = product.data
