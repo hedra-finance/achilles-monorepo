@@ -102,8 +102,9 @@ body {
   border-radius: 7px;
   font-size: 11px;
 }
-.ir-shell .wallet-button:hover {
+.ir-shell .wallet-button:hover:not(:disabled) {
   background: #1b3d63;
+  color: #c8e8ff;
 }
 .ir-main {
   max-width: 1280px;

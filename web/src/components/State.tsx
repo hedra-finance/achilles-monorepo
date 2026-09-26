@@ -22,7 +22,7 @@ export function WalletEmpty({ activity = false }: { activity?: boolean }) {
       <button className="btn primary" onClick={() => open()}>
         Connect wallet <Icon name="arrow" size={17} />
       </button>
-      <Link className="text-link" href="/">
+      <Link className="text-link" href="/products">
         Explore the strategy
       </Link>
       <div className="empty-foot">

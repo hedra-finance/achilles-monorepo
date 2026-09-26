@@ -20,7 +20,9 @@ Without a Hub RPC, the strategy and configured target allocations remain visible
 
 ## Screens and flow
 
-- **Earn:** strategy overview, settlement share-price history, synchronized tranche selection, deposit/redemption requests and claims, yield-source composition.
+- **Landing (`/`):** protocol introduction, source-to-tranche visual, underlying assets, risk layers, access steps, settlement explanation and FAQ. Launch app opens the product catalog.
+- **Products (`/products`):** searchable product catalog with list/card views, recorded NAV, Senior target APR, Junior return and deposit network.
+- **Product detail (`/products/stocks-stable`):** synchronized tranche selection, metrics and performance, stock allocation/holdings/prices, settlement flow and history, plus the investment ticket. A `tranche=junior` link carries a landing-page choice into the ticket.
 - **Portfolio:** wallet balances, settlement-valued shares, pending requests, claimable original request amounts, completed receipts.
 - **Activity:** request, bridge and settlement progress from the on-chain registry.
 
@@ -54,7 +56,7 @@ The Webpack development path is available via `pnpm --filter hedra-web dev --web
 
 ## Market workspace
 
-The strategy page places stock prices and holdings beside a guided investment ticket. Senior/Junior selection drives the Sepolia tranche metrics, performance chart and transaction ticket together. Other networks are shown as sources, not additional deposit entry points.
+The product detail page places stock prices and holdings beside a guided investment ticket. Senior/Junior selection drives the Sepolia tranche metrics, performance chart and transaction ticket together. Other networks are shown as sources, not additional deposit entry points. The public landing page remains a separate introduction; the brand link always returns home, and the product breadcrumb returns to the catalog.
 
 - **Assets & prices:** searchable stock basket, current pool quotes, adapter token balances, current marked values, actual versus target basket weights, token/pool details and snapshot block. Source data loads independently of the Hub.
 - **Allocation and holdings:** source-principal donut and stock-value pie with separate Actual/Target controls. Zero holdings remain empty; incomplete data is never normalized into a full portfolio. Company logos load from TradingView with a text fallback.
