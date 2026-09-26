@@ -4,7 +4,8 @@ import { NavChart } from '@/components/NavChart'
 import { Ticket } from '@/components/Ticket'
 import { Access } from '@/components/Access'
 import { Allocation } from '@/components/Allocation'
-import { fmt, pct, settlementAvgAprPercent, juniorYieldPercent, nextSettlement } from '@/lib/math'
+import { PoolActivity } from '@/components/PoolActivity'
+import { fmt, pct, displayYieldPercent, nextSettlement } from '@/lib/math'
 import { chainLabel, hub } from '@/lib/chains'
 import { PRODUCT } from '@/lib/product'
 
@@ -19,8 +20,8 @@ export default function ProductPage() {
   const hist = ov.data?.history ?? []
   const series = (i: number) => hist.map((h) => ({ at: h.at, price: Number(h.sharePrices[i] ?? 0n) / 1e18 }))
   const srApr = p.tranches[sr] ? Number(p.tranches[sr].apr) / 1e16 : null
-  const srReal = settlementAvgAprPercent(series(sr))
-  const jrY = juniorYieldPercent(series(jr < 0 ? p.tranches.length - 1 : jr))
+  const srReal = displayYieldPercent(series(sr))
+  const jrY = displayYieldPercent(series(jr < 0 ? p.tranches.length - 1 : jr))
   const last = ov.data?.last ?? null
   const next = nextSettlement(p.settlement)
   const chains = [...new Set(p.tranches.map((t) => t.chainId))]
@@ -33,7 +34,7 @@ export default function ProductPage() {
       </section>
       <div className="grid grid-3" style={{ margin: '16px 0' }}>
         <div className="card"><h3>Total value</h3><div className="kpi">{fmt(last?.productNav, p.decimals, 0)} <span className="sub">USDC</span></div><div className="sub">settlement #{last?.id ?? 0}{last?.at ? ` · ${last.at.toLocaleString()}` : ''}</div></div>
-        <div className="card"><h3>Senior</h3><div className="kpi" style={{ color: 'var(--senior)' }}>{pct(srApr)}</div><div className="sub">fixed APR · realized {pct(srReal)} · price {last ? (Number(last.sharePrices[sr]) / 1e18).toFixed(4) : '—'}</div></div>
+        <div className="card"><h3>Senior</h3><div className="kpi" style={{ color: 'var(--senior)' }}>{pct(srApr)}</div><div className="sub">fixed APR · {srReal.annualized ? 'realized' : 'since first settlement'} {pct(srReal.percent)} · price {last ? (Number(last.sharePrices[sr]) / 1e18).toFixed(4) : '—'}</div></div>
         <div className="card"><h3>Junior</h3><div className="kpi" style={{ color: 'var(--junior)' }}>{pct(jrY.percent)}</div><div className="sub">{jrY.annualized ? 'avg APR over settlements' : 'return since first settlement (less than a day of history)'} · price {last && jr >= 0 ? (Number(last.sharePrices[jr]) / 1e18).toFixed(4) : '—'}</div></div>
       </div>
       <div className="grid grid-2" style={{ gridTemplateColumns: '3fr 2fr', marginBottom: 16 }}>
@@ -48,6 +49,7 @@ export default function ProductPage() {
         </div>
       </div>
       <Allocation product={p} sources={ov.data?.sources ?? []} />
+      <div style={{ marginTop: 16 }}><PoolActivity /></div>
     </>
   )
 }

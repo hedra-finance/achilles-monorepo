@@ -31,8 +31,9 @@ export function settlementAvgAprPercent(series: Pt[]): number | null {
   return n === 0 ? null : (sum / n) * 100
 }
 
-/** Junior display yield — left un-annualized (shown as the raw period return) until the history spans 24 hours. */
-export function juniorYieldPercent(series: Pt[], minAnnualizeMs = 86_400_000): { percent: number | null; annualized: boolean } {
+/** Display yield for any tranche — left un-annualized (shown as the raw period return) until the history
+ *  spans 24 hours. Annualizing a few hours turns a 0.6% entry cost into a four-digit percentage. */
+export function displayYieldPercent(series: Pt[], minAnnualizeMs = 86_400_000): { percent: number | null; annualized: boolean } {
   const pts = valid(series)
   if (pts.length < 2) return { percent: null, annualized: false }
   const span = pts[pts.length - 1].at.getTime() - pts[0].at.getTime()
