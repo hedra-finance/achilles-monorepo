@@ -78,7 +78,12 @@ abstract contract BridgeClient is ReentrancyGuard, IERC165 {
         Route memory r = routeOf[productId][dstChainId];
         if (!r.set) revert NoRoute();
         uint256 maxTxFee = maxTxFeeOf[productId];
-        uint256 amt = amount == 0 ? minAmountOf[productId] : amount;
+        // Promote anything below the carrier minimum, not just zero. A bridge cannot carry a zero amount,
+        // which is why the rule existed — but it also cannot carry less than the fee it charges, and a
+        // small non-zero payout (a redemption's realised share) is rejected with
+        // "insufficient amount for maxTxFee". Treating only zero as special left that gap open.
+        uint256 min_ = minAmountOf[productId];
+        uint256 amt = amount < min_ ? min_ : amount;
         bridgeAsset.forceApprove(address(hook), amt);
         // The declared amount travels with the message so the receiver can compare it against the
         // fee-reduced delivery and have the fee sponsor cover the gap (no-op when the bridge fee is 0).

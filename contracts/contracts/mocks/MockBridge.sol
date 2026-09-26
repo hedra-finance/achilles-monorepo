@@ -58,10 +58,16 @@ contract MockBridge is IHook {
     }
 
     /// @notice Outbound (mirrors hook.request). Pulls approved assets when amount > 0 and queues the message.
-    function request(uint256 /*maxTxFee*/, User_Request memory req) external payable returns (bool) {
+    /// @dev The live hook refuses to carry less than the fee it charges ("insufficient amount for
+    ///      maxTxFee"), and a mock that accepts anything lets that failure through to a testnet: a
+    ///      redemption's realised share was smaller than the carrier minimum, the hook rejected the NAV
+    ///      response, and settlement sat in collecting. Enforce the same precondition here so the suite
+    ///      fails first.
+    function request(uint256 maxTxFee, User_Request memory req) external payable returns (bool) {
         uint64 dstChain = chainOfIndex[ChainIndex.unwrap(req.ins_code.chain)];
         if (dstChain == 0) revert UnknownDestIndex();
         uint256 amount = req.params.amount;
+        require(amount >= maxTxFee, "Hooks: insufficient amount for maxTxFee");
         if (amount > 0) token.safeTransferFrom(msg.sender, address(this), amount);
         // Like the live hook, receiveMessage gets the whole Variants blob, not the inner v.message;
         // BridgeClient unwraps it on receipt.
