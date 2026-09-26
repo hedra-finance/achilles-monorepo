@@ -494,3 +494,31 @@ export async function lpStats(): Promise<LpStats> {
 }
 
 export const hubChainId = hub.id
+
+/** Recorded stock valuations only; pool quotes are never substituted into this history. */
+export async function stockPriceHistory(rounds: readonly { id: number; at: Date | null }[]) {
+  const h = hubClient()
+  const tokens = new Set(PRODUCT.robinhood.basket.map((b) => b.token.toLowerCase()))
+  const points: import('./chart-data').StockPricePoint[] = []
+  let failures = 0
+  // Bound request concurrency and preserve gaps on partial RPC failure.
+  for (let offset = 0; offset < rounds.length; offset += 5) {
+    const batch = rounds.slice(offset, offset + 5)
+    const values = await Promise.allSettled(batch.map((round) => h.readContract({
+      address: INV, abi: investmentsAbi, functionName: 'get_adapter_valuations', args: [pid, BigInt(round.id)]
+    })))
+    values.forEach((result, i) => {
+      const prices: Record<string, bigint> = {}
+      if (result.status === 'rejected') failures++
+      else for (const adapter of result.value) {
+        if (Number(adapter.chainId) !== PRODUCT.robinhood.chainId) continue
+        for (const position of adapter.positions) {
+          const token = position.asset.toLowerCase()
+          if (tokens.has(token)) prices[token] = position.priceUsd
+        }
+      }
+      points.push({ round: batch[i].id, at: batch[i].at, prices, unavailable: result.status === 'rejected' })
+    })
+  }
+  return { points: points.toSorted((a, b) => a.round - b.round), failures }
+}

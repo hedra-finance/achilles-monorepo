@@ -250,6 +250,7 @@ export default function ProductPage() {
             </div>
           </section>
           <Allocation
+            history={hist}
             product={p}
             sources={ov.data?.sources ?? []}
             sourcesUnavailable={

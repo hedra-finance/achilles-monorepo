@@ -104,3 +104,19 @@ export function useSettlementProgress(round: number | null) {
     queryFn: () => R.settlementProgress(round!)
   })
 }
+
+export function useStockPriceHistory(
+  history: R.Settlement[],
+  enabled: boolean
+) {
+  const rounds = history
+    .toSorted((a, b) => a.id - b.id)
+    .slice(-60)
+    .map(({ id, at }) => ({ id, at }))
+  return useQuery({
+    queryKey: ['stock-price-history', rounds.map((r) => r.id)],
+    enabled: enabled && hubConfigured && rounds.length > 0,
+    staleTime: 60_000,
+    queryFn: () => R.stockPriceHistory(rounds)
+  })
+}
