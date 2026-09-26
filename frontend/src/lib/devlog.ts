@@ -19,6 +19,7 @@ let native: typeof fetch | null = null
 const THIRD_PARTY = /walletconnect\.org|web3modal\.org|coinbase\.com|reown\.com|cca-lite/i
 
 function report(level: 'error' | 'warn', ...parts: unknown[]) {
+  if (process.env.NODE_ENV === 'production') return
   const line = [TAG, ...parts]
   const noisy = parts.some((p) => typeof p === 'string' && THIRD_PARTY.test(p))
   if (noisy) console.debug(...line)
