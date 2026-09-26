@@ -1,4 +1,4 @@
-# Hedra
+# Achilles
 
 Cross-chain tranche vaults settled from a single hub, with capital split across
 independent yield sources on different networks.
@@ -37,7 +37,7 @@ web/         dapp (Next.js + wagmi/viem). Talks to the chains directly — no
 ```
 pnpm install
 pnpm compile                      # contracts
-pnpm --filter hedra-web dev       # dapp on :3000
+pnpm --filter achilles-web dev       # dapp on :3000
 ```
 
 The dapp needs `web/.env.local` (copy `web/.env.example`): public RPC URLs, a

@@ -1,9 +1,9 @@
 {
-  "name": "hedra",
+  "name": "achilles",
   "private": true,
   "packageManager": "pnpm@10.16.0",
   "scripts": {
     "build": "pnpm -r build",
-    "compile": "pnpm --filter hedra-contracts compile"
+    "compile": "pnpm --filter achilles-contracts compile"
   }
 }

@@ -10,7 +10,7 @@ createAppKit({
   adapters: [wagmiAdapter],
   projectId: projectId || '00000000000000000000000000000000',
   networks: [spokeChains[0], ...spokeChains.slice(1)],
-  metadata: { name: 'Hedra', description: 'Cross-chain tranche vaults', url: typeof window === 'undefined' ? 'https://hedra.local' : window.location.origin, icons: [] },
+  metadata: { name: 'Achilles', description: 'Cross-chain tranche vaults', url: typeof window === 'undefined' ? 'https://achilles.local' : window.location.origin, icons: [] },
   features: { analytics: false, email: false, socials: false },
   themeMode: 'light',
 })

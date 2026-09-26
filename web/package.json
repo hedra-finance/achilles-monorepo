@@ -1,5 +1,5 @@
 {
-  "name": "hedra-web",
+  "name": "achilles-web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -13,13 +13,15 @@
     "@reown/appkit": "^1.8.19",
     "@reown/appkit-adapter-wagmi": "^1.8.19",
     "@tanstack/react-query": "^5.90.19",
+    "@worldcoin/idkit": "^4.3.0",
+    "@worldcoin/idkit-core": "^4.3.0",
+    "achilles-contracts": "workspace:*",
     "next": "^16.1.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "server-only": "^0.0.1",
     "viem": "^2.48.4",
-    "wagmi": "^3.3.4",
-    "hedra-contracts": "workspace:*",
-    "server-only": "^0.0.1"
+    "wagmi": "^3.3.4"
   },
   "devDependencies": {
     "@types/node": "^24",

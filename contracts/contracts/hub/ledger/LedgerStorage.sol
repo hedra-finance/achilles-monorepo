@@ -11,8 +11,8 @@ import { HubRouter } from "../HubRouter.sol";
 ///         The precompile addresses (0x…0200 / 0x…0201) are fixed on the node but kept in storage (set once
 ///         in init) so tests can inject mocks.
 library LedgerStorage {
-    // keccak256(abi.encode(uint256(keccak256("hedra.ledger.v1")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 internal constant SLOT = 0x173f2978b587e6d28f61d18a6d0fb0b0c11f69626203684bd3a4fc33c8834400;
+    // keccak256(abi.encode(uint256(keccak256("achilles.ledger.v1")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 internal constant SLOT = 0x4fb1b85c297f4aaaa86a02b25aa5aaebfba992fa41127e763d7fca1c68658a00;
 
     struct Tranche {
         uint256 units;       // shares outstanding
