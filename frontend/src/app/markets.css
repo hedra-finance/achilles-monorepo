@@ -418,12 +418,17 @@
   padding: 0 22px 14px;
 }
 .market-toolbar .seg {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(max-content, 1fr));
+  max-width: 100%;
   width: auto;
   padding: 3px;
   border-radius: 6px;
   border: 1px solid #254059;
 }
 .market-toolbar .seg button {
+  white-space: nowrap;
+  text-align: center;
   font-size: 10px;
   padding: 6px 12px;
   border-radius: 3px;
@@ -2038,7 +2043,7 @@
   }
   .market-toolbar .seg {
     flex: 1;
-    display: flex;
+    display: grid;
   }
   .market-toolbar .seg button {
     flex: 1;
@@ -2372,4 +2377,25 @@
     margin-left: 0;
     flex-basis: 100%;
   }
+}
+
+/* Chain identity belongs to the source, independent of its chart color or selection. */
+.distribution-legend .source-chain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 5px 0;
+  color: #a8c4db;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.source-chain img {
+  display: block;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  padding: 2px;
+  box-sizing: content-box;
+  border-radius: 50%;
+  background: #0a1424;
 }

@@ -253,6 +253,7 @@ export function Allocation({
                   )
                   return {
                     ...item,
+                    chainId: item.chain,
                     value: sourceTarget
                       ? BigInt(PRODUCT.weights[item.chain])
                       : sourcesUnavailable || !records.length

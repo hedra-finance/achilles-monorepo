@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { distribution, type WeightedItem } from '@/lib/chart-data'
 import { fmt, pct } from '@/lib/math'
 import { StockLogo } from './StockLogo'
+import { ChainBadge, sourceChain } from './ChainBadge'
 
 export function DistributionChart({
   items,
@@ -98,7 +99,7 @@ export function DistributionChart({
                   strokeWidth="2"
                 />
               )}
-              <title>{`${arc.label}: ${pct(arc.percent, 2)}`}</title>
+              <title>{`${arc.label}${arc.chainId ? ` · ${sourceChain(arc.chainId)?.name ?? arc.chainId}` : ''}: ${pct(arc.percent, 2)}`}</title>
             </g>
           ))}
           {kind === 'donut' && active && (
@@ -176,6 +177,7 @@ export function DistributionChart({
               {item.ticker && <StockLogo ticker={item.ticker} />}
               <span>
                 <strong>{item.label}</strong>
+                {item.chainId && <ChainBadge chainId={item.chainId} />}
                 {!target && <small>{fmt(item.value, decimals)} USDC</small>}
               </span>
               <b>{pct(slice?.percent, 1)}</b>

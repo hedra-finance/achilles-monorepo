@@ -4,6 +4,7 @@ export type WeightedItem = {
   value: bigint | null
   color: string
   ticker?: string
+  chainId?: number
 }
 
 /** Never normalize a partial or zero-total portfolio into a misleading full circle. */
