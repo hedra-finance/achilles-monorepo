@@ -42,6 +42,8 @@ contract StablePoolSource is Initializable, IYieldSource {
     uint256 public constant BPS = 10_000;
     /// @dev Used when entryBandBps was never set, so an upgraded proxy is not stuck refusing every entry.
     uint16 internal constant DEFAULT_ENTRY_BAND_BPS = 30;
+    /// @dev Smallest balance worth deploying, in the asset's units (both legs share its decimals).
+    uint256 internal constant DUST = 1_000;
     uint16 public maxDeviationBps;          // how far off 1:1 the pool may sit before we refuse to swap
     uint16 public entryBandBps;             // how close to 1:1 the pool must sit before we enter it
     address public inventory;               // par-exchange desk: supplies the missing leg at 1:1 instead of the pool
@@ -120,7 +122,10 @@ contract StablePoolSource is Initializable, IYieldSource {
     function _enter() internal returns (bool) {
         uint256 a = assetToken.balanceOf(address(this));
         uint256 c = counterToken.balanceOf(address(this));
-        if (a == 0 && c == 0) return false;
+        // Rounding leaves a few wei behind after every entry, and balancing those would ask the pool to
+        // swap 1 wei — which returns nothing and reverts on the minimum. Below the dust floor there is
+        // no position worth opening, so decline instead of failing.
+        if (a + c < DUST) return false;
 
         // Trade only the imbalance, and fill it from the desk at par before buying any of it from the pool.
         // Swapping a fixed half ignored counter token the contract already held, and selling asset we did
