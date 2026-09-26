@@ -6,7 +6,7 @@ import { formatUnits, type Hex } from 'viem'
 import { useConfig, useSwitchChain } from 'wagmi'
 import { useWalletAccount } from '@/hooks/wallet'
 import { getWalletClient } from 'wagmi/actions'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAppKit } from '@reown/appkit/react'
 import type { Product, Settlement } from '@/lib/reads'
 import {
@@ -22,6 +22,7 @@ import { chainLabel, client, txUrl } from '@/lib/chains'
 import { fmt, parseTokenAmount } from '@/lib/math'
 import { useAccountData } from '@/hooks/data'
 import { PRODUCT } from '@/lib/product'
+import { requestLimits } from '@/lib/request-limits'
 import {
   parsePendingTransaction,
   type PendingTransaction
@@ -107,6 +108,13 @@ export function Ticket({
   const tranche = product?.tranches.find(
     (t) => t.type === type && t.chainId === chain
   )
+  const limits = useQuery({
+    queryKey: ['request-limits', chain, tranche?.vault],
+    enabled: !!tranche,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    queryFn: () => requestLimits(chain, tranche!.vault)
+  })
   const pos = acct.data?.positions.find((p) => p.index === tranche?.index)
   const price = last && tranche ? last.sharePrices[tranche.index] : null
   const dec = product?.decimals ?? 6
@@ -121,6 +129,8 @@ export function Ticket({
   const balance = mode === 'invest' ? acct.data?.balances[chain] : pos?.shares
   const eligible = tranche ? acct.data?.eligibility[tranche.index] : undefined
   const tooMuch = raw != null && balance != null && raw > balance
+  const minimum = mode === 'invest' ? limits.data?.deposit : limits.data?.redeem
+  const tooSmall = raw != null && raw > 0n && minimum != null && raw < minimum
   const ready =
     !!tranche &&
     !!pos &&
@@ -128,6 +138,9 @@ export function Ticket({
     raw > 0n &&
     balance != null &&
     !tooMuch &&
+    !tooSmall &&
+    minimum != null &&
+    !limits.isError &&
     (mode !== 'invest' || eligible === true) &&
     !pending &&
     !acct.isError
@@ -261,19 +274,25 @@ export function Ticket({
               ? 'Checking your account…'
               : tooMuch
                 ? 'Insufficient balance'
-                : invalid
-                  ? 'Check amount'
-                  : !raw
-                    ? 'Enter an amount'
-                    : walletChain !== chain
-                      ? 'Switch network to continue'
-                      : mode === 'invest'
-                        ? reviewing
-                          ? 'Confirm deposit request'
-                          : 'Review deposit'
-                        : reviewing
-                          ? 'Confirm redemption request'
-                          : 'Review redemption'
+                : limits.isError
+                  ? 'Request limits unavailable'
+                  : minimum == null
+                    ? 'Checking request limits…'
+                    : tooSmall
+                      ? 'Amount below request minimum'
+                      : invalid
+                        ? 'Check amount'
+                        : !raw
+                          ? 'Enter an amount'
+                          : walletChain !== chain
+                            ? 'Switch network to continue'
+                            : mode === 'invest'
+                              ? reviewing
+                                ? 'Confirm deposit request'
+                                : 'Review deposit'
+                              : reviewing
+                                ? 'Confirm redemption request'
+                                : 'Review redemption'
   const primaryAction = (
     <div className="ticket-primary-action">
       {!address ? (
@@ -510,8 +529,8 @@ export function Ticket({
               placeholder="0.00"
               value={amt}
               disabled={locked}
-              aria-invalid={invalid || tooMuch}
-              aria-describedby="amount-help estimate-help"
+              aria-invalid={invalid || tooMuch || tooSmall}
+              aria-describedby="amount-help estimate-help request-limits-help"
               onChange={(e) => {
                 setAmt(e.target.value)
                 setMsg(null)
@@ -534,6 +553,27 @@ export function Ticket({
               MAX
             </button>
           </div>
+        </div>
+        <div id="request-limits-help">
+          {tooSmall && (
+            <p className="err" role="status">
+              Enter at least {formatUnits(minimum!, dec)}{' '}
+              {mode === 'invest' ? 'USDC' : 'shares'} to meet the entry-chain
+              request limit.
+            </p>
+          )}
+          {limits.isError && (
+            <p className="err">
+              Could not check request limits.{' '}
+              <button
+                className="text-link"
+                disabled={limits.isFetching}
+                onClick={() => void limits.refetch()}
+              >
+                Retry
+              </button>
+            </p>
+          )}
         </div>
         <div
           className="amount-presets"

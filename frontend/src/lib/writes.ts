@@ -35,6 +35,8 @@ const MESSAGES: Record<string, string> = {
   NOT_WHITELISTED: 'This wallet is not eligible yet. Get whitelisted first.',
   OVER_CAPACITY: 'This deposit exceeds your personal cap.',
   BELOW_MIN: 'Amount is below the minimum request size.',
+  BRIDGE_FEE:
+    'This amount is too small for the bridge fee limit. Increase the amount and review the request again.',
   ZERO_AMOUNT: 'Enter an amount.',
   PAUSED: 'Deposits are paused right now.',
   NOTHING_CLAIMABLE: 'Nothing to claim yet. Wait for the next settlement.',
@@ -55,21 +57,23 @@ export function toActionError(e: unknown): ActionError {
   const text = `${errName} ${(e as Error)?.message ?? ''}`
   const code = /DepositRestricted|NotAllowed|not whitelisted/i.test(text)
     ? 'NOT_WHITELISTED'
-    : /OverCapacity/.test(text)
-      ? 'OVER_CAPACITY'
-      : /BelowMinRequest/.test(text)
-        ? 'BELOW_MIN'
-        : /ZeroAmount/.test(text)
-          ? 'ZERO_AMOUNT'
-          : /EnforcedPause/.test(text)
-            ? 'PAUSED'
-            : /NothingClaimable|NotSettled|ClaimMismatch/.test(text)
-              ? 'NOTHING_CLAIMABLE'
-              : /insufficient|exceeds balance/i.test(text)
-                ? 'INSUFFICIENT'
-                : /rejected|denied/i.test(text)
-                  ? 'REJECTED'
-                  : 'UNKNOWN'
+    : /insufficient amount for maxTxFee/i.test(text)
+      ? 'BRIDGE_FEE'
+      : /OverCapacity/.test(text)
+        ? 'OVER_CAPACITY'
+        : /BelowMinRequest/.test(text)
+          ? 'BELOW_MIN'
+          : /ZeroAmount/.test(text)
+            ? 'ZERO_AMOUNT'
+            : /EnforcedPause/.test(text)
+              ? 'PAUSED'
+              : /NothingClaimable|NotSettled|ClaimMismatch/.test(text)
+                ? 'NOTHING_CLAIMABLE'
+                : /insufficient|exceeds balance/i.test(text)
+                  ? 'INSUFFICIENT'
+                  : /rejected|denied/i.test(text)
+                    ? 'REJECTED'
+                    : 'UNKNOWN'
   return new ActionError(code, MESSAGES[code], e)
 }
 

@@ -5,7 +5,7 @@ import { MotionLink as Link } from '@/components/MotionLink'
 import { WalletEmpty, QueryNotice, PageHeading } from '@/components/State'
 import { hubConfigured } from '@/lib/chains'
 import { useWalletAccount } from '@/hooks/wallet'
-import { useProduct, useActivity } from '@/hooks/data'
+import { useProduct, useActivity, useAccountData } from '@/hooks/data'
 import { Steps } from '@/components/Steps'
 import { chainLabel } from '@/lib/chains'
 import { fmt, short } from '@/lib/math'
@@ -32,6 +32,7 @@ function ActivityContent() {
   const product = useProduct()
   const p = product.data
   const act = useActivity(address)
+  const account = useAccountData()
   const heading = (
     <PageHeading
       eyebrow="CROSS-CHAIN JOURNEY"
@@ -77,22 +78,58 @@ function ActivityContent() {
         <DataSkeleton label="Loading your requests" />
       </>
     )
-  if (act.data.length === 0)
+  if (act.data.length === 0) {
+    if (account.isPending)
+      return (
+        <>
+          {heading}
+          <DataSkeleton label="Checking vault requests" />
+        </>
+      )
+    if (account.isError || account.data?.issues.positions.length)
+      return (
+        <>
+          {heading}
+          <QueryNotice
+            title="Vault requests could not be checked"
+            retry={() => void account.refetch()}
+          >
+            No Hub records are available yet. Retry to check for requests on the
+            entry network before submitting another transaction.
+          </QueryNotice>
+        </>
+      )
+    const pending = account.data?.positions.some(
+      (position) =>
+        position.deposit.pending > 0n ||
+        position.deposit.claimable > 0n ||
+        position.redeem.pending > 0n ||
+        position.redeem.claimable > 0n
+    )
     return (
       <>
         {heading}
         <section className="empty-state card">
-          <h2>Your journey starts with a deposit.</h2>
+          <h2>
+            {pending
+              ? 'Your vault request is recorded.'
+              : 'No Hub activity yet.'}
+          </h2>
           <p>
-            Track requests and settlement progress here after your first
-            investment.
+            {pending
+              ? 'Cross-chain records have not reached this activity feed yet. Check your position for pending amounts and available claims; do not submit the same request again.'
+              : 'Requests appear here after they reach the settlement network. If you just submitted a transaction, allow time for the cross-chain records to arrive.'}
           </p>
-          <Link className="btn primary" href="/products/stocks-stable#invest">
-            Explore the strategy
+          <Link
+            className="btn primary"
+            href={pending ? '/portfolio' : '/products/stocks-stable#invest'}
+          >
+            {pending ? 'View your position' : 'Explore the strategy'}
           </Link>
         </section>
       </>
     )
+  }
   const dec = p.decimals
   return (
     <>

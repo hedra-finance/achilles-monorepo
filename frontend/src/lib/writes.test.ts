@@ -7,7 +7,8 @@ import {
   claim,
   confirmTransaction,
   PendingTransactionError,
-  ActionError
+  ActionError,
+  toActionError
 } from './writes.ts'
 
 const me = `0x${'1'.repeat(40)}` as Address
@@ -23,6 +24,14 @@ const tranche = {
   vault: other,
   share: other
 }
+
+test('bridge fee rejection explains the request limit instead of a wallet balance error', () => {
+  const error = toActionError(
+    new Error('Hooks: insufficient amount for maxTxFee')
+  )
+  assert.equal(error.code, 'BRIDGE_FEE')
+  assert.match(error.message, /bridge fee limit/)
+})
 
 function fixture(
   options: {
