@@ -65,7 +65,7 @@ export function Ticket({ product, last }: { product: Product; last: Settlement |
       <label className="sub">Network</label>
       <div className="row" style={{ marginBottom: 10 }}>
         <select value={chain} onChange={(e) => setChain(Number(e.target.value))}>
-          {[...new Set(product.tranches.map((t) => t.chainId))].map((c) => <option key={c} value={c}>{chainLabel(c)}</option>)}
+          {product.depositChains.map((c) => <option key={c} value={c}>{chainLabel(c)}</option>)}
         </select>
         {address && <span className="sub">{mode === 'invest' ? 'USDC' : 'shares'} on this network: {fmt(balance, dec)}</span>}
       </div>
