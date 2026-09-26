@@ -285,56 +285,212 @@ export async function receiveHistory(user: Address, limit = 20): Promise<Receive
 
 // -- yield sources --
 
-export type YieldSource = { chainId: number; address: Address; name: string | null; principal: bigint; sharePct: number; positions: { asset: Address; amount: bigint; priceWad: bigint; usdValue: bigint }[] }
+export type YieldSource = {
+  chainId: number
+  address: Address
+  name: string | null
+  principal: bigint
+  sharePct: number
+  positions: {
+    asset: Address
+    amount: bigint
+    priceWad: bigint
+    usdValue: bigint
+  }[]
+}
 /** Per-source valuation for the latest round — from the ledger (get_adapter_valuations) plus each source's name. */
 export async function yieldSources(): Promise<YieldSource[]> {
   const h = hubClient()
-  const sid = await h.readContract({ address: INV, abi: investmentsAbi, functionName: 'get_settlement_id', args: [pid] })
+  const [sid] = await h.readContract({
+    address: INV,
+    abi: investmentsAbi,
+    functionName: 'get_last_settlement',
+    args: [pid]
+  })
   if (sid === 0n) return []
-  const vals = await h.readContract({ address: INV, abi: investmentsAbi, functionName: 'get_adapter_valuations', args: [pid, sid] })
+  const vals = await h.readContract({
+    address: INV,
+    abi: investmentsAbi,
+    functionName: 'get_adapter_valuations',
+    args: [pid, sid]
+  })
   const total = vals.reduce((a, v) => a + v.principal, 0n)
-  return Promise.all(vals.map(async (v) => ({
-    chainId: Number(v.chainId), address: v.adapter,
-    name: await client(Number(v.chainId)).readContract({ address: v.adapter, abi: adapterNameAbi, functionName: 'name' }).catch(() => null),
-    principal: v.principal, sharePct: total > 0n ? Number((v.principal * 10000n) / total) / 100 : 0,
-    positions: v.positions.filter((p) => p.counted).map((p) => ({ asset: p.asset, amount: p.amount, priceWad: p.priceUsd, usdValue: p.usdValue })),
-  })))
+  return Promise.all(
+    vals.map(async (v) => ({
+      chainId: Number(v.chainId),
+      address: v.adapter,
+      name: await client(Number(v.chainId))
+        .readContract({
+          address: v.adapter,
+          abi: adapterNameAbi,
+          functionName: 'name'
+        })
+        .catch(() => null),
+      principal: v.principal,
+      sharePct: total > 0n ? Number((v.principal * 10000n) / total) / 100 : 0,
+      positions: v.positions
+        .filter((p) => p.counted)
+        .map((p) => ({
+          asset: p.asset,
+          amount: p.amount,
+          priceWad: p.priceUsd,
+          usdValue: p.usdValue
+        }))
+    }))
+  )
 }
 
-export type BasketHolding = { symbol: string; token: Address; amount: bigint; priceWad: bigint; weightBps: number }
+export type BasketHolding = {
+  symbol: string
+  token: Address
+  pool: Address
+  amount: bigint | null
+  decimals: number | null
+  priceWad: bigint | null
+  weightBps: number
+  block: bigint
+}
 /** Stock basket — the source's constituents and their current V3 pool price. */
 export async function basketHoldings(): Promise<BasketHolding[]> {
   const { chainId, basketAdapter } = PRODUCT.robinhood
   const c = client(chainId)
-  const n = Number(await c.readContract({ address: basketAdapter, abi: basketAdapterAbi, functionName: 'basketCount' }))
-  return Promise.all(Array.from({ length: n }, async (_, i) => {
-    const [token, pool, weightBps] = await c.readContract({ address: basketAdapter, abi: basketAdapterAbi, functionName: 'basket', args: [BigInt(i)] })
-    const [symbol, amount, [sqrt], token0] = await Promise.all([
-      c.readContract({ address: token, abi: erc20Abi, functionName: 'symbol' }),
-      c.readContract({ address: token, abi: erc20Abi, functionName: 'balanceOf', args: [basketAdapter] }),
-      c.readContract({ address: pool, abi: uniV3PoolAbi, functionName: 'slot0' }),
-      c.readContract({ address: pool, abi: uniV3PoolAbi, functionName: 'token0' }),
-    ])
-    return { symbol, token, amount, priceWad: sqrtPriceToWad(sqrt, token0.toLowerCase() === token.toLowerCase()), weightBps }
-  }))
+  const blockNumber = await c.getBlockNumber()
+  const n = Number(
+    await c.readContract({
+      address: basketAdapter,
+      abi: basketAdapterAbi,
+      functionName: 'basketCount',
+      blockNumber
+    })
+  )
+  return Promise.all(
+    Array.from({ length: n }, async (_, i) => {
+      const [token, pool, weightBps] = await c.readContract({
+        address: basketAdapter,
+        abi: basketAdapterAbi,
+        functionName: 'basket',
+        args: [BigInt(i)],
+        blockNumber
+      })
+      const [symbol, amount, slot, token0, decimals] = await Promise.allSettled(
+        [
+          c.readContract({
+            address: token,
+            abi: erc20Abi,
+            functionName: 'symbol',
+            blockNumber
+          }),
+          c.readContract({
+            address: token,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [basketAdapter],
+            blockNumber
+          }),
+          c.readContract({
+            address: pool,
+            abi: uniV3PoolAbi,
+            functionName: 'slot0',
+            blockNumber
+          }),
+          c.readContract({
+            address: pool,
+            abi: uniV3PoolAbi,
+            functionName: 'token0',
+            blockNumber
+          }),
+          c.readContract({
+            address: token,
+            abi: erc20Abi,
+            functionName: 'decimals',
+            blockNumber
+          })
+        ]
+      )
+      const configured = PRODUCT.robinhood.basket.find(
+        (b) => b.token.toLowerCase() === token.toLowerCase()
+      )
+      return {
+        symbol:
+          symbol.status === 'fulfilled'
+            ? symbol.value
+            : (configured?.symbol ?? 'Token'),
+        token,
+        pool,
+        weightBps,
+        block: blockNumber,
+        amount: amount.status === 'fulfilled' ? amount.value : null,
+        decimals:
+          decimals.status === 'fulfilled' ? Number(decimals.value) : null,
+        // Source pools pair equal-decimal tokens. A zero sqrt price means the pool is uninitialized.
+        priceWad:
+          slot.status === 'fulfilled' &&
+          slot.value[0] > 0n &&
+          token0.status === 'fulfilled'
+            ? sqrtPriceToWad(
+                slot.value[0],
+                token0.value.toLowerCase() === token.toLowerCase()
+              )
+            : null
+      }
+    })
+  )
 }
 
-export type LpStats = { reserveUsdc: bigint; reserveUsdt: bigint; lpShareBps: number; lpValue: bigint; totalAssets: bigint }
+export type LpStats = {
+  reserveUsdc: bigint
+  reserveUsdt: bigint
+  lpShareBps: number
+  lpValue: bigint
+  totalAssets: bigint
+}
 /** Stable pool — its reserves, and the source's LP share and its value. */
-export async function lpStats(p: Product): Promise<LpStats> {
+export async function lpStats(): Promise<LpStats> {
   const { chainId, lpAdapter, pool } = PRODUCT.sepolia
   const c = client(chainId)
-  const usdc = p.tranches.find((t) => t.chainId === chainId)?.asset
-  const [[r0, r1], supply, bal, lpValue, totalAssets, token0] = await Promise.all([
-    c.readContract({ address: pool, abi: uniV2PoolAbi, functionName: 'getReserves' }),
-    c.readContract({ address: pool, abi: uniV2PoolAbi, functionName: 'totalSupply' }),
-    c.readContract({ address: pool, abi: uniV2PoolAbi, functionName: 'balanceOf', args: [lpAdapter] }),
-    c.readContract({ address: lpAdapter, abi: lpAdapterAbi, functionName: 'lpValue' }),
-    c.readContract({ address: lpAdapter, abi: lpAdapterAbi, functionName: 'totalAssets' }),
-    c.readContract({ address: pool, abi: uniV3PoolAbi, functionName: 'token0' }),
-  ])
+  const usdc = PRODUCT.sepolia.usdc
+  const [[r0, r1], supply, bal, lpValue, totalAssets, token0] =
+    await Promise.all([
+      c.readContract({
+        address: pool,
+        abi: uniV2PoolAbi,
+        functionName: 'getReserves'
+      }),
+      c.readContract({
+        address: pool,
+        abi: uniV2PoolAbi,
+        functionName: 'totalSupply'
+      }),
+      c.readContract({
+        address: pool,
+        abi: uniV2PoolAbi,
+        functionName: 'balanceOf',
+        args: [lpAdapter]
+      }),
+      c.readContract({
+        address: lpAdapter,
+        abi: lpAdapterAbi,
+        functionName: 'lpValue'
+      }),
+      c.readContract({
+        address: lpAdapter,
+        abi: lpAdapterAbi,
+        functionName: 'totalAssets'
+      }),
+      c.readContract({
+        address: pool,
+        abi: uniV3PoolAbi,
+        functionName: 'token0'
+      })
+    ])
   const usdcIs0 = !!usdc && token0.toLowerCase() === usdc.toLowerCase()
-  return { reserveUsdc: usdcIs0 ? r0 : r1, reserveUsdt: usdcIs0 ? r1 : r0, lpShareBps: supply > 0n ? Number((bal * 10000n) / supply) : 0, lpValue, totalAssets }
+  return {
+    reserveUsdc: usdcIs0 ? r0 : r1,
+    reserveUsdt: usdcIs0 ? r1 : r0,
+    lpShareBps: supply > 0n ? Number((bal * 10000n) / supply) : 0,
+    lpValue,
+    totalAssets
+  }
 }
 
 export const hubChainId = hub.id

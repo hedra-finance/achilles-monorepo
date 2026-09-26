@@ -21,6 +21,24 @@ export const pct = (v: number | null | undefined, dp = 2) =>
 export const wadToNumber = (v: bigint) => Number(v) / 1e18
 export const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
+/** Values remain in WAD until display, including for tokens with different decimals. */
+export function holdingValueWad(
+  amount: bigint | null | undefined,
+  priceWad: bigint | null | undefined,
+  decimals: number | null | undefined
+): bigint | null {
+  if (amount == null || priceWad == null || decimals == null) return null
+  return (amount * priceWad) / 10n ** BigInt(decimals)
+}
+
+export function priceChangePercent(
+  current: bigint | null | undefined,
+  previous: bigint | null | undefined
+): number | null {
+  if (current == null || previous == null || previous <= 0n) return null
+  return Number(((current - previous) * 1_000_000n) / previous) / 10_000
+}
+
 type Pt = { at: Date | null; price: number | null | undefined }
 const valid = (s: Pt[]) =>
   s.filter(

@@ -4,6 +4,7 @@ import { Providers } from './providers'
 import { Shell } from '@/components/Shell'
 import './globals.css'
 import './experience.css'
+import './markets.css'
 
 export const metadata: Metadata = {
   title: 'Achilles | Structured cross-chain yield',

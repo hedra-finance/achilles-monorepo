@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { formatUnits, type Hex } from 'viem'
 import { useAccount, useConfig, useSwitchChain } from 'wagmi'
 import { getWalletClient } from 'wagmi/actions'
@@ -18,6 +19,7 @@ import { fmt, parseTokenAmount } from '@/lib/math'
 import { useAccountData } from '@/hooks/data'
 import { PRODUCT } from '@/lib/product'
 import { Icon } from './Icon'
+import { Access } from './Access'
 
 type Mode = 'invest' | 'redeem'
 type Context = Parameters<typeof deposit>[0]
@@ -44,6 +46,7 @@ export function Ticket({
   const [chain, setChain] = useState<number>(PRODUCT.entryChains[0])
   const [amt, setAmt] = useState('')
   const [busy, setBusy] = useState(false)
+  const [reviewed, setReviewed] = useState<string | null>(null)
   const [stage, setStage] = useState('')
   const [msg, setMsg] = useState<{
     label?: string
@@ -76,10 +79,10 @@ export function Ticket({
     !tooMuch &&
     (mode !== 'invest' || eligible === true) &&
     !acct.isError
-  const networks = product
-    ? [...new Set(product.tranches.map((t) => t.chainId))]
-    : PRODUCT.entryChains
+  const networks = PRODUCT.entryChains
   const messageUrl = msg?.hash && msg.chain ? txUrl(msg.chain, msg.hash) : null
+  const reviewKey = `${address}:${type}:${chain}:${mode}:${amt}`
+  const reviewing = reviewed === reviewKey
 
   function changeMode(value: Mode) {
     setMode(value)
@@ -117,13 +120,14 @@ export function Ticket({
       setMsg({ label: label + ' confirmed', hash, chain })
       setAmt('')
       await Promise.all(
-        ['account', 'activity', 'receives'].map((key) =>
+        ['account', 'activity', 'receives', 'funding'].map((key) =>
           qc.invalidateQueries({ queryKey: [key] })
         )
       )
     } catch (e) {
       setMsg({ err: toActionError(e).message })
     } finally {
+      setReviewed(null)
       setBusy(false)
       onBusyChange(false)
       setStage('')
@@ -151,8 +155,12 @@ export function Ticket({
                     : walletChain !== chain
                       ? 'Switch network to continue'
                       : mode === 'invest'
-                        ? 'Request deposit'
-                        : 'Request redemption'
+                        ? reviewing
+                          ? 'Confirm deposit request'
+                          : 'Review deposit'
+                        : reviewing
+                          ? 'Confirm redemption request'
+                          : 'Review redemption'
   return (
     <section className="card ticket" id="invest" aria-label="Investment ticket">
       <div className="ticket-header">
@@ -180,6 +188,14 @@ export function Ticket({
         </div>
       </div>
       <div className="ticket-body">
+        <Access
+          key={address ?? 'disconnected'}
+          eligible={eligible}
+          type={type}
+          mode={mode}
+          shares={pos?.shares}
+          disabled={busy}
+        />
         <div className="field-label">Choose your tranche</div>
         <div className="tranche-toggle" role="group" aria-label="Tranche">
           <button
@@ -274,6 +290,26 @@ export function Ticket({
             </button>
           </div>
         </div>
+        <div
+          className="amount-presets"
+          role="group"
+          aria-label="Use a percentage of your balance"
+        >
+          {[25, 50, 75, 100].map((percent) => (
+            <button
+              key={percent}
+              disabled={busy || balance == null}
+              onClick={() => {
+                if (balance != null) {
+                  setAmt(formatUnits((balance * BigInt(percent)) / 100n, dec))
+                  setMsg(null)
+                }
+              }}
+            >
+              {percent === 100 ? 'Max' : `${percent}%`}
+            </button>
+          ))}
+        </div>
         <div id="amount-help">
           {invalid && (
             <p className="err">
@@ -294,6 +330,35 @@ export function Ticket({
           Based on the last settlement price. Final amounts are set at
           settlement.
         </p>
+        <div className="ticket-quote">
+          <span>Last share price</span>
+          <strong>{fmt(price, 18, 6)} USDC</strong>
+        </div>
+        {reviewing && ready && (
+          <div className="request-review" role="status">
+            <strong>
+              Review your {mode === 'invest' ? 'deposit' : 'redemption'}
+            </strong>
+            <p>
+              {fmt(raw, dec, 4)} {mode === 'invest' ? 'USDC' : 'shares'} ·{' '}
+              {type} · {chainLabel(chain)}
+            </p>
+            <p>
+              {mode === 'invest'
+                ? 'Your wallet may ask for token approval before the request.'
+                : 'Your wallet may ask for share approval before the request.'}{' '}
+              You will need to claim after settlement. The final amount may
+              differ from the estimate.
+            </p>
+            <button
+              className="text-link"
+              onClick={() => setReviewed(null)}
+              disabled={busy}
+            >
+              Edit request
+            </button>
+          </div>
+        )}
         {!address ? (
           <button className="btn primary full" onClick={() => open()}>
             <Icon name="wallet" size={16} />
@@ -304,15 +369,17 @@ export function Ticket({
             className="btn primary full"
             disabled={busy || !ready}
             onClick={() =>
-              tranche &&
-              raw != null &&
-              run(
-                (ctx) =>
-                  mode === 'invest'
-                    ? deposit(ctx, tranche, raw)
-                    : redeem(ctx, tranche, raw),
-                mode === 'invest' ? 'Deposit request' : 'Redemption request'
-              )
+              !reviewing
+                ? setReviewed(reviewKey)
+                : tranche &&
+                  raw != null &&
+                  run(
+                    (ctx) =>
+                      mode === 'invest'
+                        ? deposit(ctx, tranche, raw)
+                        : redeem(ctx, tranche, raw),
+                    mode === 'invest' ? 'Deposit request' : 'Redemption request'
+                  )
             }
           >
             {buttonText}
@@ -395,6 +462,9 @@ export function Ticket({
                   View transaction <Icon name="external" size={11} />
                 </a>
               )}
+              <Link className="text-link" href="/activity">
+                Track settlement <Icon name="arrow" size={12} />
+              </Link>
             </p>
           )}
           {msg?.err && (
