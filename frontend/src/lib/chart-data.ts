@@ -30,6 +30,7 @@ export type StockPricePoint = {
   at: Date | null
   prices: Record<string, bigint>
   unavailable?: boolean
+  missingRecord?: boolean
 }
 /** Use one common baseline round for comparison; a missing or zero baseline is not indexable. */
 export function indexStockPrices(

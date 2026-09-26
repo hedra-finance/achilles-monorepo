@@ -1,5 +1,5 @@
 // All on-chain reads — calls the hub precompiles (settlement, requests, permissions) and the spokes (vaults, allocators, pools) directly.
-import type { Address, Hex } from 'viem'
+import { BaseError, ContractFunctionRevertedError, type Address, type Hex } from 'viem'
 import { client, hubClient, hub } from './chains'
 import { PRODUCT } from './product'
 import { readIndependently } from './partial-reads'
@@ -549,7 +549,15 @@ export async function stockPriceHistory(rounds: readonly { id: number; at: Date 
     })))
     values.forEach((result, i) => {
       const prices: Record<string, bigint> = {}
-      if (result.status === 'rejected') failures++
+      const revert = result.status === 'rejected' && result.reason instanceof BaseError
+        ? result.reason.walk((error) => error instanceof ContractFunctionRevertedError)
+        : null
+      const missingRecord = revert instanceof ContractFunctionRevertedError &&
+        revert.reason === 'adapter valuations not found'
+      if (missingRecord) {
+        // Temporary display fallback for confirmed absent records, never transport errors.
+        for (const token of tokens) prices[token] = 0n
+      } else if (result.status === 'rejected') failures++
       else for (const adapter of result.value) {
         if (Number(adapter.chainId) !== PRODUCT.robinhood.chainId) continue
         for (const position of adapter.positions) {
@@ -557,7 +565,7 @@ export async function stockPriceHistory(rounds: readonly { id: number; at: Date 
           if (tokens.has(token)) prices[token] = position.priceUsd
         }
       }
-      points.push({ round: batch[i].id, at: batch[i].at, prices, unavailable: result.status === 'rejected' })
+      points.push({ round: batch[i].id, at: batch[i].at, prices, missingRecord, unavailable: result.status === 'rejected' && !missingRecord })
     })
   }
   return { points: points.toSorted((a, b) => a.round - b.round), failures }

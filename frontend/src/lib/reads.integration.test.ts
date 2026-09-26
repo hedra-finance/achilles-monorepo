@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
+import { BaseError, ContractFunctionRevertedError } from 'viem'
 import * as abi from './abi.ts'
 import { readIndependently } from './partial-reads.ts'
 import type * as Reads from './reads'
@@ -58,6 +59,7 @@ function fixture(
       hubClient: () => ({ readContract: readContract(49088) }),
       client: (chain: number) => ({ readContract: readContract(chain) })
     },
+    viem: { BaseError, ContractFunctionRevertedError },
     './abi': abi,
     './product': { PRODUCT: { id: 1n, entryChains: [11155111] } },
     './partial-reads': { readIndependently },

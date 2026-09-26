@@ -103,7 +103,7 @@ export function StockPricesChart({ history }: { history: Settlement[] }) {
       ) : (
         <>
           <div className="stock-hover-readout">
-            <strong>Settlement #{active?.round}</strong>
+            <strong>Settlement #{active?.round}{active?.missingRecord ? ' · Missing record — shown as 0' : ''}</strong>
             <span>
               {active?.at?.toLocaleString([], {
                 month: 'short',
@@ -257,15 +257,15 @@ export function StockPricesChart({ history }: { history: Settlement[] }) {
               </span>
               <b
                 className={
-                  value != null && value < 100
+                  !active?.missingRecord && value != null && value < 100
                     ? 'negative'
                     : value != null && value > 100
                       ? 'positive'
                       : ''
                 }
               >
-                {value != null && value > 100 ? '+' : ''}
-                {pct(value == null ? null : value - 100, 2)}
+                {!active?.missingRecord && value != null && value > 100 ? '+' : ''}
+                {active?.missingRecord ? 'No record' : pct(value == null ? null : value - 100, 2)}
               </b>
             </button>
           )
@@ -276,10 +276,11 @@ export function StockPricesChart({ history }: { history: Settlement[] }) {
           ? `Settlement #${indexed.baseline} = 100. `
           : ''}
         Up to 60 finalized rounds. Hover, tap or use the slider for prices.
-        Missing records leave gaps; stocks without a positive baseline cannot be
-        indexed. These are settlement records, not live quotes.
+        Confirmed missing records are temporarily shown as 0, not actual prices or losses.
+        Other loading failures leave gaps; stocks without a positive baseline cannot be indexed. These are settlement records, not live quotes.
       </p>
-      {(query.isError || !!query.data?.failures) && (
+      {/* Temporarily hidden historical-price retry notice.
+      (query.isError || !!query.data?.failures) && (
         <p className="err stock-chart-error">
           Some historical prices could not be loaded.{' '}
           <button
@@ -290,7 +291,7 @@ export function StockPricesChart({ history }: { history: Settlement[] }) {
             Retry history
           </button>
         </p>
-      )}
+      ) */}
     </div>
   )
 }
