@@ -105,6 +105,15 @@ contract MockSettlementLedger is ISettlementLedger {
         external onlyValuation(product_id)
     {
         delete adapterValuationsOf[product_id][settlement_id];
+        // The pallet keys entries on (chainId, adapter) and rejects a repeat with DuplicateAdapterValuationEntry.
+        // Accepting one here silently would let a caller that buffers the same chain twice pass its tests and
+        // still lose the whole round's valuations on chain.
+        for (uint256 i = 0; i < valuations.length; i++)
+            for (uint256 j = 0; j < i; j++)
+                require(
+                    valuations[i].chainId != valuations[j].chainId || valuations[i].adapter != valuations[j].adapter,
+                    "DuplicateAdapterValuationEntry"
+                );
         for (uint256 i = 0; i < valuations.length; i++) adapterValuationsOf[product_id][settlement_id].push(valuations[i]);
         emit AdapterValuationsRecorded(product_id, settlement_id, valuations);
     }

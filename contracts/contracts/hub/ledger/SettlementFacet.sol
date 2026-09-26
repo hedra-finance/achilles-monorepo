@@ -48,6 +48,11 @@ contract SettlementFacet is LedgerBase {
         if (_adapterOfChain(_hubChainId()) != address(0)) _s().payoutCollected += _s().orchestrator.sweepPayout(_s().productId); // collect ready hub ASYNC payout tickets
         uint256 hubNavAtStart = _hubNavOrZero(); // for the event only — the final number is re-measured at settlement
         _s().navReceivedCount = 0;
+        // The buffer belongs to the round, so it has to be dropped here and not only after a settlement:
+        // a round that never settles (abortCollect, forceUpdateNAV) otherwise leaves its responses behind and
+        // the next round appends a second entry for the same chain. The merged record then carries that chain
+        // twice, the pallet rejects the duplicate, and the round's valuations are lost (AdapterValsSkipped).
+        delete _s().navValsBuf;
         (uint64[] memory spokes, ) = _spokes(); // collection targets = every spoke registered in the pallet (hub is measured locally)
         _s().navExpected = spokes.length;
         _sendCollect(spokes);
