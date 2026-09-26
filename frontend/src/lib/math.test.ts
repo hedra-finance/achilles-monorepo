@@ -104,3 +104,27 @@ test('entry cost over a few hours stays a period loss instead of a projected APR
   assert.equal(result.annualized, false)
   assert.ok(result.percent !== null && Math.abs(result.percent + 0.6) < 1e-9)
 })
+
+test('tranche yield averages only the last 10 settlements', () => {
+  // A steep run, then a flat one. Without a window the old run keeps leaking into the figure.
+  const pts: { at: Date; price: number }[] = []
+  let price = 1
+  for (let i = 0; i < 20; i++) { pts.push({ at: d(i), price }); price *= 1.05 }
+  // The window is the last 11 points (10 intervals); keep a jump off that boundary so all 11 match.
+  for (let i = 20; i <= 30; i++) pts.push({ at: d(i), price })
+  const y = displayYieldPercent(pts)
+  assert.equal(y.annualized, true)
+  // Everything inside the window is flat, so the average has to be zero.
+  assert.ok(y.percent !== null && Math.abs(y.percent) < 1e-9, String(y.percent))
+})
+
+test('tranche yield uses what history there is when it is shorter than the window', () => {
+  const y = displayYieldPercent([
+    { at: d(0), price: 1 },
+    { at: d(1), price: 1.001 },
+    { at: d(2), price: 1.002 },
+    { at: d(3), price: 1.003 }
+  ])
+  assert.equal(y.annualized, true) // three intervals is enough to average
+  assert.ok(y.percent !== null && y.percent > 0)
+})

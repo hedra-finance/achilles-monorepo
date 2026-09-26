@@ -49,9 +49,22 @@ const valid = (s: Pt[]) =>
       p.price >= 0
   )
 
+/**
+ * How many settlement intervals the displayed yield averages over.
+ *
+ * A single interval is noise. The residual tranche takes whatever is left after the senior's fixed
+ * accrual, so one round moves with the minute's pool price rather than with the strategy. Averaging
+ * the recent rounds shows the rate it is actually running at, and dropping older ones keeps the
+ * number following current conditions instead of staying anchored to launch.
+ */
+export const YIELD_WINDOW_INTERVALS = 10
+/** The last WINDOW intervals — WINDOW + 1 points — or everything there is when the history is shorter. */
+const windowed = (pts: { at: Date; price: number }[]) =>
+  pts.slice(-(YIELD_WINDOW_INTERVALS + 1))
+
 /** Simple average of each settlement interval's annualized return. Use displayYieldPercent for UI history guards. */
 export function settlementAvgAprPercent(series: Pt[]): number | null {
-  const pts = valid(series)
+  const pts = windowed(valid(series))
   if (pts.length < 2) return null
   let sum = 0,
     n = 0
@@ -64,17 +77,26 @@ export function settlementAvgAprPercent(series: Pt[]): number | null {
   return n === 0 ? null : (sum / n) * 100
 }
 
-/** Display yield for any tranche — left un-annualized (shown as the raw period return) until the history spans 24 hours. */
+/**
+ * Display yield for any tranche: the average of the last YIELD_WINDOW_INTERVALS settlement intervals.
+ *
+ * Annualized once the window holds enough intervals to average, or once it spans a day. Below that
+ * there is nothing to average and the raw period return is shown instead, so a product that has only
+ * just settled does not advertise an APR extrapolated from one round. A ten-minute cadence reaches
+ * MIN_ANNUALIZE_INTERVALS long before it reaches a day, which is the point — the figure is meant to
+ * read as a rate as soon as it means anything.
+ */
+export const MIN_ANNUALIZE_INTERVALS = 3
 export function displayYieldPercent(
   series: Pt[],
   minAnnualizeMs = 86_400_000
 ): { percent: number | null; annualized: boolean } {
-  const pts = valid(series)
+  const pts = windowed(valid(series))
   if (pts.length < 2) return { percent: null, annualized: false }
   const span = pts[pts.length - 1].at.getTime() - pts[0].at.getTime()
   if (span <= 0 || pts[0].price <= 0)
     return { percent: null, annualized: false }
-  if (span >= minAnnualizeMs)
+  if (pts.length - 1 >= MIN_ANNUALIZE_INTERVALS || span >= minAnnualizeMs)
     return { percent: settlementAvgAprPercent(pts), annualized: true }
   return {
     percent: (pts[pts.length - 1].price / pts[0].price - 1) * 100,
