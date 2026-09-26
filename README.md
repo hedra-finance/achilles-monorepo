@@ -109,3 +109,8 @@ AI-assisted development includes frontend implementation, code review, tests,
 and documentation. This statement describes the frontend assistance reflected
 here; the team should describe its complete contribution and development history
 in the event submission.
+
+## AI assistance
+
+See [AI assistance and human direction](AI_USAGE.md) for the scope of AI-assisted
+work, human review and guidance, and links to the implementation areas.
