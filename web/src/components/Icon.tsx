@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react'
 
 const paths = {
+  pause: 'M8 5v14M16 5v14',
+  play: 'm8 5 11 7-11 7V5Z',
   layers: 'm12 3 10 5-10 5L2 8l10-5Zm-9 9 9 4.5 9-4.5M3 16l9 4.5 9-4.5',
   wallet: 'M20 8V5H4a2 2 0 0 0 0 4h17v11H4a2 2 0 0 1-2-2V7m19 6h-5v3h5',
   activity: 'M3 12h4l3-8 4 16 3-8h4',

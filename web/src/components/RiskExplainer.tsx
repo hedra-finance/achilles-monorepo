@@ -30,7 +30,11 @@ export function RiskExplainer({ selected }: { selected: RiskLayer }) {
           </button>
         </div>
       </div>
-      <div className="waterfall-order" aria-live="polite">
+      <div
+        key={view}
+        className="waterfall-order content-enter"
+        aria-live="polite"
+      >
         {layers.map((layer, i) => (
           <div
             key={layer}
