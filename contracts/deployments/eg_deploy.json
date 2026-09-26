@@ -1,0 +1,147 @@
+{
+  "deployedAt": "2026-09-26T03:26:04.116Z",
+  "productId": "0x000000020000000f",
+  "activated": false,
+  "topology": "Hub records and settles, holds no capital \u00b7 Robinhood testnet: tokenized stock basket mirroring the QQQ top 8 over Uniswap V3 0.05% pools, 50% of capital, no user vaults \u00b7 Sepolia: USDC/USDT mock V2 pool LP earning fees from bot-generated volume, 50% of capital, and the only network with Senior/Junior vaults",
+  "weights": {
+    "hub": 0,
+    "spoke": 5000,
+    "sepolia": 5000
+  },
+  "hub": {
+    "chainId": 49088,
+    "orchestrator": "0xb90933d2707EE5452A87888Ae1b5c353c391a261",
+    "orchestratorReused": true,
+    "valuation": "0x1e73964D310ED318f62a7a28dc646980aA127A82",
+    "valuationFacets": {
+      "SettlementFacet": "0x3a42E8A06a3BfAfdb49eB36D7DEf3D39402D9D7F",
+      "IntakeFacet": "0x5545ff350359649a0b116A80c2Ab6796469cf97E",
+      "DiamondCutFacet": "0x590E5e20d1e3726Ae1DdF0a21dcCF8bCaCC53501",
+      "DiamondLoupeFacet": "0xEB7c502ea849771f67BFa95beB1522b5609fC7B5",
+      "OwnershipFacet": "0xF0F2e8f7FD9cCB5930B292f0c84817d37512Ef8c",
+      "DiamondInit": "0xbc985eF417bb910C79d00D1855EEe4AE48CB4259"
+    },
+    "usdc": "0x4154fa18a6362ee58ec0f1041bbdf479706973f1",
+    "libraries": {
+      "AllocatorRegistry": "0x496b942cD7F1E4a33f49Cc758cEA08f310E59504",
+      "ValuationRecords": "0xC1e788B87dc096c546D41F00432fdae75fD46282"
+    }
+  },
+  "spoke": {
+    "entry": false,
+    "chainId": 46630,
+    "manager": "0xBED479272ad516D2dB33EDe6420747F156705c9B",
+    "mcAdapter": "0x67fE0BEe69Fead7692043D0bb61ADC9dD98409e6",
+    "feeSponsorHook": "0x9fA9B010D2e75AEdFDb9Cbe576c9E1C53acA5590",
+    "usdc": "0x97ae5a704ef376f06aeb31b4fe14a0429675b90b",
+    "libraries": {
+      "BridgeRetry": "0x374f786A4eC2005f980756Cbb37b60C307e935a7"
+    },
+    "shareSr": "0x5625fD188c38BB4089309F5306da4723dF93B8CD",
+    "shareJr": "0xBE8C1b28a5D2107cD5e7E0d960ad58BC69FC68ED",
+    "vaultSr": "0x9003d067675131245B250641ceE8987165C2eef0",
+    "vaultJr": "0x9FA44f9695392bCF0b8918530A594E1f44223d27",
+    "whitelistHook": "0x4B72FA098fC0edd6E1c4b8CB7901d8F615520d57",
+    "basketAdapter": "0x97D037a494611bb592e55b707E9697c013e6C447",
+    "oracle": "0x74F2f7E06DE89BAc3F8A38B14495E4b80A99D44b",
+    "basket": [
+      {
+        "symbol": "NVDA",
+        "name": "NVIDIA",
+        "weightBps": 2020,
+        "feed": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15",
+        "token": "0xfBc6023033EecE879aDA0EeBf483C45345fA20e6",
+        "pool": "0xC5430a96C602AfA3356b7Fa3793351397A936aC9",
+        "fee": 500
+      },
+      {
+        "symbol": "AAPL",
+        "name": "Apple",
+        "weightBps": 1692,
+        "feed": "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0",
+        "token": "0x3Fc81a260B099324F755fA1AfD3F7426fdD11d0C",
+        "pool": "0x2AF2DB882b6Cb6506dDd3cF79e3d1DacE473ADc4",
+        "fee": 500
+      },
+      {
+        "symbol": "GOOGL",
+        "name": "Alphabet",
+        "weightBps": 1402,
+        "feed": "0xF6f373a037c30F0e5010d854385cA89185AE638b",
+        "token": "0xCDac35bD7708d6D8cfDCe6406e4753EF73B3830C",
+        "pool": "0x1dF7853189821D5977850c0284e6878f34Dc12c2",
+        "fee": 500
+      },
+      {
+        "symbol": "MSFT",
+        "name": "Microsoft",
+        "weightBps": 1375,
+        "feed": "0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E",
+        "token": "0x521129552e390cBb09E677C92feA3B0fAcF29B06",
+        "pool": "0x69f73424d92cFDBEe1f588c74891cE0C48752423",
+        "fee": 500
+      },
+      {
+        "symbol": "MU",
+        "name": "Micron",
+        "weightBps": 1067,
+        "feed": "0x425EEFdCf05ed6526C3cE61Af99429A228a6d596",
+        "token": "0xf90c5bbA456f4B98b6D90072880ee873148b9F65",
+        "pool": "0x9df6d075024742b390d92a51Bfd99399f08C0427",
+        "fee": 500
+      },
+      {
+        "symbol": "AMZN",
+        "name": "Amazon",
+        "weightBps": 1009,
+        "feed": "0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C",
+        "token": "0x8644dbe9658ebe7a040A9032820ECB1C0Bd7eBA3",
+        "pool": "0xD10FC8A7e4053f73e1e2ed09633BC38a9d3F1284",
+        "fee": 500
+      },
+      {
+        "symbol": "AMD",
+        "name": "AMD",
+        "weightBps": 787,
+        "feed": "0x943A29E7ae51A4798823ca9eEd2ed533B2A22C72",
+        "token": "0x8068c7EfdCC32d66f48EfeEbDDbbd5ae36Dd1bAa",
+        "pool": "0x8a31e4B4c9583EEB1E8eA0a34507806347A79327",
+        "fee": 500
+      },
+      {
+        "symbol": "TSLA",
+        "name": "Tesla",
+        "weightBps": 648,
+        "feed": "0x4A1166a659A55625345e9515b32adECea5547C38",
+        "token": "0x9c8a2Ed0a6FBC8fB1b9ecCaEf143c8EE06741f66",
+        "pool": "0xd67f03Df9B366683b031175EeDEB7154065cFEd6",
+        "fee": 500
+      }
+    ],
+    "uniswapV3": {
+      "factory": "0xdf9e3D6ffaC4513dD7b053212bbECcbCD15ec932",
+      "positionManager": "0xFFe6CFc4f759b65f9B62c9D05A9E21a78cE93e12",
+      "swapRouter02": "0xb79cB26e90EBBD9bC02c75267c9a86dBa1AFedB7",
+      "fee": 500
+    }
+  },
+  "sepolia": {
+    "entry": true,
+    "chainId": 11155111,
+    "manager": "0x7fe3B563A8E2BEF32086b46F35691Cd6f4b6A8eD",
+    "mcAdapter": "0x22CD2A4a6cCA860a931048321D38C26B47aDA6dA",
+    "feeSponsorHook": "0xf379b515159253bE9fAD7D76EdBE79707A830590",
+    "usdc": "0xc46f30bf7ffa9fd745725d48258d3d245ac28499",
+    "libraries": {
+      "BridgeRetry": "0x462b39dD83cBc9eAF6c87BCcbDE9558fdAE2A621"
+    },
+    "shareSr": "0x54767a8192CA468Df50062C53B958a944B0a5eb9",
+    "shareJr": "0xDD504Ac88aEC91ed0553F314771Fdf7D5c3dE3Cf",
+    "vaultSr": "0x8D5cD2269C0dB450c24BC0400B33148B837a21B9",
+    "vaultJr": "0xd13ed0C3da2a0707f30e29F8D714D50178F361c2",
+    "whitelistHook": "0xE469796DC50aa15CC42b6D93b36f3D7E20f9aE81",
+    "lpAdapter": "0x2C12e2E9136b00e2F9E00e20264a18e213C03faD",
+    "pool": "0x92F32943dd391E3A10bA4B61190AA76303D48f9d",
+    "usdt": "0x176Fc1F58aA28655c3f36c39796f5555fb1a9d96"
+  }
+}
