@@ -2399,3 +2399,41 @@
   background: #0a1424;
   align-self: flex-start;
 }
+
+.liquidity-panel > summary {
+  transition: background-color 180ms ease;
+}
+.liquidity-panel > summary:hover {
+  background: #102c43;
+}
+.liquidity-panel > summary:focus-visible {
+  outline: 2px solid #72c9fb;
+  outline-offset: -3px;
+}
+.liquidity-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid #31546e;
+  border-radius: 6px;
+  color: #a9daff;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.liquidity-toggle .liquidity-hide,
+.liquidity-panel[open] .liquidity-show {
+  display: none;
+}
+.liquidity-panel[open] .liquidity-hide {
+  display: inline;
+}
+.liquidity-panel[open] .liquidity-toggle svg {
+  transform: rotate(90deg);
+}
+@media (max-width: 640px) {
+  .liquidity-toggle {
+    margin-left: auto;
+  }
+}

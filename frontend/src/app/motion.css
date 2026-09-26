@@ -481,7 +481,7 @@ html[data-page-visible='false'] *::after {
   animation: panel-arrive 220ms var(--motion-ease) both;
 }
 .round-button > svg,
-.liquidity-panel summary > svg {
+.liquidity-panel .liquidity-toggle svg {
   transition: transform 220ms var(--motion-ease);
 }
 .investment-access[open] > :not(summary),

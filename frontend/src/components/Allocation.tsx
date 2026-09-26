@@ -531,7 +531,11 @@ export function Allocation({
           <span className="liquidity-value">
             {fmt(lp.data?.lpValue, 6)} <small>USDC</small>
           </span>
-          <Icon name="chevron" size={14} />
+          <span className="liquidity-toggle">
+            <span className="liquidity-show">View details</span>
+            <span className="liquidity-hide">Hide details</span>
+            <Icon name="chevron" size={16} />
+          </span>
         </summary>
         <div className="liquidity-metrics">
           <div>
