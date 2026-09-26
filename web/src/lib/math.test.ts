@@ -6,10 +6,34 @@ import {
   sqrtPriceToWad,
   nextSettlement,
   fmt,
-  parseTokenAmount
+  parseTokenAmount,
+  holdingValueWad,
+  priceChangePercent
 } from './math.ts'
 
 const d = (h: number) => new Date(h * 3_600_000)
+
+test('stock values respect token decimals and preserve missing versus zero', () => {
+  assert.equal(
+    holdingValueWad(1_500_000n, 225n * 10n ** 18n, 6),
+    3375n * 10n ** 17n
+  )
+  assert.equal(
+    holdingValueWad(15n * 10n ** 17n, 225n * 10n ** 18n, 18),
+    3375n * 10n ** 17n
+  )
+  assert.equal(holdingValueWad(0n, 225n * 10n ** 18n, 6), 0n)
+  assert.equal(holdingValueWad(1n, null, 6), null)
+  assert.equal(holdingValueWad(null, 10n ** 18n, 6), null)
+})
+
+test('price comparison handles missing baselines and a complete price loss', () => {
+  assert.equal(priceChangePercent(125n, 100n), 25)
+  assert.equal(priceChangePercent(75n, 100n), -25)
+  assert.equal(priceChangePercent(0n, 100n), -100)
+  assert.equal(priceChangePercent(100n, 0n), null)
+  assert.equal(priceChangePercent(100n, null), null)
+})
 
 test('avg apr: 1% per day ≈ 365% apr', () => {
   const apr = settlementAvgAprPercent([

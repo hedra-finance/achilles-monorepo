@@ -1,11 +1,12 @@
 'use client'
 import Image from 'next/image'
 import { useState } from 'react'
-import { useProduct, useOverview } from '@/hooks/data'
+import { useAccount } from 'wagmi'
+import { useProduct, useOverview, useAccountData } from '@/hooks/data'
 import { NavChart } from '@/components/NavChart'
 import { Ticket } from '@/components/Ticket'
-import { Access } from '@/components/Access'
 import { Allocation } from '@/components/Allocation'
+import { SettlementHistory } from '@/components/SettlementHistory'
 import { Icon } from '@/components/Icon'
 import { QueryNotice } from '@/components/State'
 import { YieldFlow, type RiskLayer } from '@/components/YieldFlow'
@@ -17,27 +18,42 @@ import { PRODUCT } from '@/lib/product'
 export default function ProductPage() {
   const product = useProduct()
   const ov = useOverview()
+  const acct = useAccountData()
+  const { address } = useAccount()
   const [selected, setSelected] = useState<RiskLayer>('Senior')
   const [transactionBusy, setTransactionBusy] = useState(false)
   const p = product.data
-  const sr = p?.tranches.findIndex((t) => t.type === 'Senior') ?? -1
-  const jr = p?.tranches.findIndex((t) => t.type === 'Junior') ?? -1
+  const sr =
+    p?.tranches.findIndex(
+      (t) => t.type === 'Senior' && t.chainId === PRODUCT.entryChains[0]
+    ) ?? -1
+  const jr =
+    p?.tranches.findIndex(
+      (t) => t.type === 'Junior' && t.chainId === PRODUCT.entryChains[0]
+    ) ?? -1
+  const index = selected === 'Senior' ? sr : jr
   const hist = ov.data?.history ?? []
-  const series = (i: number) =>
+  const srApr = p && sr >= 0 ? Number(p.tranches[sr].apr) / 1e16 : null
+  const jrY = juniorYieldPercent(
     hist.map((h) => ({
       at: h.at,
-      price: h.sharePrices[i] == null ? null : Number(h.sharePrices[i]) / 1e18
+      price: h.sharePrices[jr] == null ? null : Number(h.sharePrices[jr]) / 1e18
     }))
-  const srApr = p && sr >= 0 ? Number(p.tranches[sr].apr) / 1e16 : null
-  const jrY = juniorYieldPercent(series(jr))
+  )
   const last = ov.data?.last ?? null
-  const time = last?.at?.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  const sharePrice = last?.sharePrices[index]
+  const position = acct.data?.positions.find(
+    (position) => position.index === index
+  )
+  const dec = p?.decimals ?? 6
+  const positionValue =
+    position && sharePrice != null
+      ? (position.shares * sharePrice) / 10n ** 18n
+      : null
+  const dataUnavailable = !hubConfigured || product.isError || ov.isError
   return (
-    <>
-      <section className="ir-hero" aria-labelledby="hero-title">
+    <div className="market-experience">
+      <section className="strategy-banner" aria-labelledby="strategy-heading">
         <div className="coast-scene" aria-hidden="true">
           <Image
             src="/scenes/midnight-coast.png"
@@ -47,330 +63,301 @@ export default function ProductPage() {
             sizes="100vw"
           />
         </div>
-        <div className="ir-intro">
+        <div className="strategy-banner-copy">
           <span className="ir-kicker">
-            <span className="spark" /> THE YIELD STRUCTURING PROTOCOL
+            <span className="spark" /> ACHILLES / STRUCTURED YIELD
           </span>
-          <h1 id="hero-title">
-            Structure any yield.
-            <br />
-            <span>On any chain.</span>
+          <h1 id="strategy-heading">
+            Stocks & <span>Stable LP.</span>
           </h1>
-          <p>One strategy. Two ways to take risk. Your choice.</p>
-          <a className="ir-mobile-jump" href="#position">
-            Choose your layer <Icon name="arrow" size={13} />
-          </a>
+          <p>
+            Technology exposure. Liquidity income.
+            <br />
+            One portfolio, with a layer of risk that fits you.
+          </p>
+          <div className="strategy-tags">
+            <span>
+              <span className="status-dot amber" /> Testnet strategy
+            </span>
+            <span>{PRODUCT.robinhood.basket.length} stocks + USDC / USDT</span>
+            <span>Deposit on Sepolia</span>
+          </div>
         </div>
-        <YieldFlow
-          selected={selected}
-          disabled={transactionBusy}
-          onSelect={setSelected}
-        />
-        <div className="hero-continue">
-          <span>
-            <span className="status-dot amber" /> Testnet experience <i />{' '}
-            Stocks + stablecoin liquidity
-          </span>
-          <a className="btn primary" href="#position">
-            Continue with {selected}
-            <Icon name="arrow" size={16} />
-          </a>
+        <div className="strategy-brand-art">
+          <Image
+            src="/brand/achilles.png"
+            alt="Achilles — helmet, A and layered capital"
+            width={340}
+            height={260}
+            priority
+          />
+          <span>KNOW THE RISK. CHOOSE YOUR LAYER.</span>
         </div>
       </section>
-      <div className="ir-stats" aria-label="Strategy overview">
+      <div className="strategy-context-bar">
         <div>
-          <span>STRATEGY VALUE</span>
+          <small>STRATEGY NAV</small>
           <strong>
-            {fmt(last?.productNav, p?.decimals ?? 6, 0)} <small>USDC</small>
+            {fmt(last?.productNav, dec)} <span>USDC</span>
           </strong>
-          <p>
-            {last
-              ? `Finalized settlement #${last.id}`
-              : 'Awaiting settlement data'}
-          </p>
         </div>
         <div>
-          <span>
-            <i className="legend-dot senior" /> SENIOR TARGET APR
-          </span>
-          <strong>{pct(srApr)}</strong>
-          <p>Priority yield · not guaranteed</p>
-        </div>
-        <div>
-          <span>
-            <i className="legend-dot junior" /> JUNIOR{' '}
-            {jrY.annualized ? 'REALIZED APR' : 'PERIOD RETURN'}
-          </span>
-          <strong>{pct(jrY.percent)}</strong>
-          <p>Residual yield · first-loss exposure</p>
-        </div>
-        <div>
-          <span>STRATEGY COMPOSITION</span>
+          <small>CAPITAL TARGET</small>
           <strong>
-            {PRODUCT.weights[PRODUCT.robinhood.chainId] / 100} <small>/</small>{' '}
-            {PRODUCT.weights[PRODUCT.sepolia.chainId] / 100}{' '}
-            <small>target</small>
+            {PRODUCT.weights[PRODUCT.robinhood.chainId] / 100}% stocks{' '}
+            <span>/</span> {PRODUCT.weights[PRODUCT.sepolia.chainId] / 100}% LP
           </strong>
-          <p>Stock basket + stablecoin LP</p>
         </div>
+        <div>
+          <small>SETTLEMENT</small>
+          <strong>
+            {last ? `#${last.id}` : 'Awaiting data'}
+            <span>
+              {last?.at
+                ? last.at.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+                : 'On-chain finalization'}
+            </span>
+          </strong>
+        </div>
+        <a className="btn primary" href="#invest">
+          Build your position <Icon name="arrow" size={14} />
+        </a>
       </div>
+      <nav className="strategy-nav" aria-label="Strategy sections">
+        <a href="#position">Your layer</a>
+        <a href="#strategy">Assets & prices</a>
+        <a href="#performance">Performance</a>
+        <a href="#settlements">Settlements</a>
+        <a href="#how-it-works">
+          How it works <Icon name="arrow" size={12} />
+        </a>
+      </nav>
       {!hubConfigured ? (
-        <QueryNotice title="Live data is not connected yet">
-          Explore the strategy and choose a layer. Live values appear when the
-          network connection is configured.
+        <QueryNotice title="Settlement data is not connected yet">
+          You can still inspect source pools below. Investment opens when the
+          product connection is ready.
         </QueryNotice>
       ) : product.isError ? (
         <QueryNotice
-          title="The settlement network is unavailable"
-          retry={() => {
-            void product.refetch()
-          }}
+          title="Settlement data is unavailable"
+          retry={() => void product.refetch()}
           busy={product.isFetching}
         >
-          Your wallet is unchanged. Try refreshing the connection.
+          Source prices are loaded independently. Your wallet is unchanged.
         </QueryNotice>
       ) : ov.isError || ov.data?.issues.length ? (
         <QueryNotice
-          title="Some live data is unavailable"
-          retry={() => {
-            void ov.refetch()
-          }}
+          title="Some settlement data is unavailable"
+          retry={() => void ov.refetch()}
           busy={ov.isFetching}
         >
-          Available values are shown. Missing values remain marked with a dash.
+          Available values remain visible. Missing values are marked with a
+          dash.
         </QueryNotice>
       ) : null}
-      <section
-        id="position"
-        className="position-section"
-        aria-labelledby="position-title"
-      >
-        <div className="ir-section-heading">
-          <div>
-            <span className="eyebrow">01 / CHOOSE YOUR POSITION</span>
-            <h2 id="position-title">
-              Your capital. <span>Your terms.</span>
-            </h2>
-          </div>
-          <p>
-            The same underlying strategy.
-            <br />A different place in the capital structure.
-          </p>
-        </div>
-        <div className="position-layout">
-          <div className="position-guide">
+      <div className="trading-layout">
+        <div className="research-column">
+          <section
+            id="position"
+            className="layer-workspace"
+            aria-labelledby="layer-title"
+          >
+            <div className="desk-heading">
+              <div>
+                <span className="eyebrow">01 / CHOOSE YOUR LAYER</span>
+                <h2 id="layer-title">Same assets. Different exposure.</h2>
+              </div>
+            </div>
             <div
-              className="profile-selector"
+              className="market-layer-selector"
               role="group"
               aria-label="Risk profile"
             >
-              <button
-                disabled={transactionBusy}
-                aria-pressed={selected === 'Senior'}
-                className={selected === 'Senior' ? 'selected' : ''}
-                onClick={() => setSelected('Senior')}
-              >
-                <Icon name="shield" size={21} />
-                <span>
-                  <strong>Senior</strong>
-                  <small>Prioritize yield</small>
-                </span>
-                <span className="radio-indicator" />
-              </button>
-              <button
-                disabled={transactionBusy}
-                aria-pressed={selected === 'Junior'}
-                className={
-                  'junior' + (selected === 'Junior' ? ' selected' : '')
-                }
-                onClick={() => setSelected('Junior')}
-              >
-                <Icon name="chart" size={21} />
-                <span>
-                  <strong>Junior</strong>
-                  <small>Take residual upside</small>
-                </span>
-                <span className="radio-indicator" />
-              </button>
+              {(['Senior', 'Junior'] as const).map((layer) => (
+                <button
+                  key={layer}
+                  disabled={transactionBusy}
+                  aria-pressed={selected === layer}
+                  className={`${layer.toLowerCase()} ${selected === layer ? 'selected' : ''}`}
+                  onClick={() => setSelected(layer)}
+                >
+                  <div>
+                    <Icon
+                      name={layer === 'Senior' ? 'shield' : 'chart'}
+                      size={19}
+                    />
+                    <strong>{layer}</strong>
+                    <span className="radio-indicator" />
+                  </div>
+                  <span className="layer-yield">
+                    {layer === 'Senior' ? pct(srApr) : pct(jrY.percent)}
+                    <small>
+                      {layer === 'Senior'
+                        ? 'Target APR'
+                        : jrY.annualized
+                          ? 'Realized APR'
+                          : 'Period return'}
+                    </small>
+                  </span>
+                  <p>
+                    {layer === 'Senior'
+                      ? 'Priority yield · paid before Junior'
+                      : 'Residual yield · first-loss capital'}
+                  </p>
+                </button>
+              ))}
             </div>
+            <p className="layer-sync-note">
+              <Icon name="layers" size={13} />
+              Metrics, chart and investment ticket follow your selected layer.
+            </p>
             <div
-              className={'selected-profile ' + selected.toLowerCase()}
+              className="layer-metrics"
+              aria-label={`${selected} metrics`}
               aria-live="polite"
             >
-              <span className="eyebrow">
-                {selected === 'Senior'
-                  ? 'AHEAD IN THE YIELD QUEUE'
-                  : 'FIRST LOSS. RESIDUAL REWARD.'}
-              </span>
-              <h3>
-                {selected === 'Senior'
-                  ? 'Let priority work for you.'
-                  : 'Take a different side of yield.'}
-              </h3>
-              <p>
-                {selected === 'Senior'
-                  ? 'Receive available yield first, up to the target rate. Junior capital absorbs losses before your layer.'
-                  : 'Receive the yield left after Senior’s allocation. In exchange, your capital absorbs the strategy’s losses first.'}
-              </p>
-              <div className="profile-rate">
-                <span>
+              <div>
+                <span>SHARE PRICE</span>
+                <strong>{fmt(sharePrice, 18, 6)}</strong>
+                <small>USDC / {selected} share</small>
+              </div>
+              <div>
+                <span>TRANCHE NAV</span>
+                <strong>{fmt(last?.trancheNavs[index], dec)}</strong>
+                <small>USDC · finalized</small>
+              </div>
+              <div>
+                <span>YOUR POSITION</span>
+                <strong>{fmt(positionValue, dec)}</strong>
+                <small>
+                  {address
+                    ? `${fmt(position?.shares, dec, 4)} shares`
+                    : 'Connect wallet to view'}
+                </small>
+              </div>
+              <div>
+                <span>YIELD PRIORITY</span>
+                <strong>{selected === 'Senior' ? 'First' : 'Residual'}</strong>
+                <small>
                   {selected === 'Senior'
-                    ? 'Target APR'
-                    : jrY.annualized
-                      ? 'Realized APR'
-                      : 'Period return'}
-                </span>
-                <strong>
-                  {selected === 'Senior' ? pct(srApr) : pct(jrY.percent)}
-                </strong>
+                    ? 'Junior absorbs losses first'
+                    : 'Junior absorbs losses first'}
+                </small>
+              </div>
+            </div>
+          </section>
+          <Allocation
+            product={p}
+            sources={ov.data?.sources ?? []}
+            sourcesUnavailable={
+              dataUnavailable ||
+              !ov.data ||
+              !!ov.data.issues.includes('sources')
+            }
+          />
+          <section
+            id="performance"
+            className="card market-performance"
+            aria-labelledby="performance-title"
+          >
+            <div className="desk-heading">
+              <div>
+                <span className="eyebrow">02 / PRICE OF YOUR LAYER</span>
+                <h2 id="performance-title">{selected} performance</h2>
+              </div>
+              <span className={`pill ${selected.toLowerCase()}`}>
+                {selected}
+              </span>
+            </div>
+            <NavChart history={hist} sr={sr} jr={jr} selected={selected} />
+          </section>
+          <SettlementHistory
+            history={hist}
+            sr={sr}
+            jr={jr}
+            decimals={dec}
+            unavailable={
+              dataUnavailable || !!ov.data?.issues.includes('history')
+            }
+          />
+          <section className="card market-risk">
+            <div className="desk-heading">
+              <div>
+                <span className="eyebrow">UNDERSTAND THE TRADE-OFF</span>
+                <h2>Priority has a price.</h2>
               </div>
             </div>
             <RiskExplainer selected={selected} />
-            <div className="settlement-journey">
-              <span className="eyebrow">A REQUEST, THEN A SETTLEMENT.</span>
-              <div>
-                <span>
-                  <b>01</b>Request
-                </span>
-                <Icon name="arrow" size={14} />
-                <span>
-                  <b>02</b>Settle
-                </span>
-                <Icon name="arrow" size={14} />
-                <span>
-                  <b>03</b>Claim
-                </span>
-              </div>
-              <p>
-                Deposits become claimable shares after settlement. Redemptions
-                follow the same cycle; withdrawals are not instant.
-              </p>
-            </div>
-          </div>
-          <aside className="ir-ticket-column">
-            <div className="ticket-context">
-              <span className="spark" /> BUILD YOUR POSITION{' '}
-              <span>SEPOLIA</span>
-            </div>
-            <Ticket
-              product={p}
-              last={last}
-              type={selected}
-              onTypeChange={setSelected}
-              onBusyChange={setTransactionBusy}
-            />
-            <Access />
-          </aside>
+            <p className="market-disclosure">
+              Senior has priority, not a capital guarantee. Junior absorbs
+              losses first and receives residual yield. Both layers can lose
+              value.
+            </p>
+          </section>
         </div>
-      </section>
-      <section className="ir-performance" aria-labelledby="performance-title">
-        <div className="ir-section-heading">
-          <div>
-            <span className="eyebrow">02 / FOLLOW THE PERFORMANCE</span>
-            <h2 id="performance-title">
-              Every settlement. <span>In view.</span>
-            </h2>
+        <aside className="investment-column">
+          <div className="ticket-context">
+            <span className="spark" /> YOUR {selected.toUpperCase()} POSITION{' '}
+            <span>SEPOLIA</span>
           </div>
-          <span className="period-label">
-            {time ? `Updated ${time}` : 'Settlement history'}
+          <Ticket
+            product={p}
+            last={last}
+            type={selected}
+            onTypeChange={setSelected}
+            onBusyChange={setTransactionBusy}
+          />
+          <div className="ticket-journey">
+            <span>
+              <b>01</b> Request
+            </span>
+            <span>
+              <b>02</b> Settle
+            </span>
+            <span>
+              <b>03</b> Claim
+            </span>
+            <p>
+              Approval lets the vault use your tokens. A request enters
+              settlement. Claim afterwards to receive shares or USDC.
+            </p>
+          </div>
+        </aside>
+      </div>
+      <details id="how-it-works" className="protocol-overview">
+        <summary>
+          <div>
+            <span className="eyebrow">THE ACHILLES APPROACH</span>
+            <h2>
+              Structure any yield. <span>On any chain.</span>
+            </h2>
+            <p>Follow the sources into the capital structure.</p>
+          </div>
+          <span className="btn">
+            Explore the flow <Icon name="chevron" size={16} />
           </span>
-        </div>
-        <div className="card performance-card">
-          <div className="chart-legend">
-            <span>
-              <i className="legend-dot senior" /> Senior
-            </span>
-            <span>
-              <i className="legend-dot junior" /> Junior
-            </span>
-            <span className="chart-unit">USDC / share</span>
-          </div>
-          <NavChart history={hist} sr={sr} jr={jr} />
-          <div className="chart-footer">
-            <Icon name="info" size={14} />
-            Finalized on-chain share prices. Past returns do not guarantee
-            future performance.
-          </div>
-        </div>
-      </section>
-      <section
-        id="strategy"
-        className="ir-allocation"
-        aria-labelledby="strategy-title"
-      >
-        <div className="ir-section-heading">
-          <div>
-            <span className="eyebrow">03 / LOOK UNDER THE SURFACE</span>
-            <h2 id="strategy-title">
-              Know where <span>your capital goes.</span>
-            </h2>
-          </div>
-          <span className="pill">Configured testnet strategy</span>
-        </div>
-        <Allocation
-          product={p}
-          sources={ov.data?.sources ?? []}
-          sourcesUnavailable={
-            !hubConfigured ||
-            !!ov.data?.issues.includes('sources') ||
-            ov.isError
-          }
+        </summary>
+        <YieldFlow
+          selected={selected}
+          onSelect={setSelected}
+          disabled={transactionBusy}
         />
-      </section>
-      <section id="vision" className="vision-section">
-        <span className="eyebrow">THE VISION / BEYOND THIS STRATEGY</span>
-        <h2>
-          One layer.
-          <br />
-          <span>A wider world of yield.</span>
-        </h2>
-        <p>
-          Achilles is designed around a simple idea: separate where yield comes
-          from from how you take risk.
-        </p>
-        <div className="vision-grid">
-          {[
-            {
-              title: 'DeFi lending',
-              icon: 'wallet',
-              text: 'Money-market strategies'
-            },
-            {
-              title: 'Treasuries & bonds',
-              icon: 'shield',
-              text: 'Fixed-income exposure'
-            },
-            {
-              title: 'Real-world assets',
-              icon: 'globe',
-              text: 'Credit and real estate'
-            },
-            {
-              title: 'Custom strategies',
-              icon: 'layers',
-              text: 'A broader strategy design space'
-            }
-          ].map((v) => (
-            <div key={v.title}>
-              <Icon
-                name={v.icon as 'wallet' | 'shield' | 'globe' | 'layers'}
-                size={24}
-              />
-              <h3>{v.title}</h3>
-              <p>{v.text}</p>
-              <span>Planned · not available</span>
-            </div>
-          ))}
+        <div id="vision" className="market-vision">
+          <strong>Beyond this strategy</strong>
+          <p>
+            Lending, treasuries, real-world assets and custom strategies are
+            planned categories. The current testnet strategy uses the stock
+            basket and stablecoin LP shown above.
+          </p>
         </div>
-        <p className="vision-disclosure">
-          These categories describe the product vision. The current testnet
-          experience is limited to the stock basket and stablecoin LP shown
-          above.
-        </p>
-        <a className="text-link" href="#position">
-          Find your layer <Icon name="arrow" size={15} />
-        </a>
-      </section>
-    </>
+      </details>
+      <a href="#invest" className="mobile-position-jump">
+        Invest in {selected}
+        <Icon name="arrow" size={15} />
+      </a>
+    </div>
   )
 }

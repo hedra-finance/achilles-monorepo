@@ -43,16 +43,13 @@ export function useOverview() {
 export const useBasket = () =>
   useQuery({
     queryKey: ['basket'],
-    enabled: hubConfigured,
     queryFn: R.basketHoldings,
     refetchInterval: 60_000
   })
 export function useLp() {
-  const { data: p } = useProduct()
   return useQuery({
-    queryKey: ['lp', !!p],
-    enabled: !!p,
-    queryFn: () => R.lpStats(p!),
+    queryKey: ['lp'],
+    queryFn: R.lpStats,
     refetchInterval: 30_000
   })
 }

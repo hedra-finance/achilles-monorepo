@@ -10,22 +10,32 @@ export const PRODUCT = {
   robinhood: {
     chainId: dep.spoke.chainId,
     basketAdapter: dep.spoke.basketAdapter as Address,
-    basket: dep.spoke.basket as { symbol: string; name: string; weightBps: number; token: string; pool?: string }[],
+    basket: dep.spoke.basket as {
+      symbol: string
+      name: string
+      weightBps: number
+      token: string
+      pool?: string
+    }[]
   },
   sepolia: {
     chainId: dep.sepolia.chainId,
-    lpAdapter: dep.sepolia.lpAdapter as Address,
     usdc: dep.sepolia.usdc as Address,
+    lpAdapter: dep.sepolia.lpAdapter as Address,
     pool: dep.sepolia.pool as Address,
     usdt: dep.sepolia.usdt as Address,
-    /** Records which human claimed which wallet. Absent until deployed. */
-    humanRegistry: (dep.sepolia as { humanRegistry?: string }).humanRegistry as Address | undefined,
+    humanRegistry: dep.sepolia.humanRegistry as Address
   },
-  /** User deposit entry point — Sepolia only. The other network's vaults exist (the pallet requires one
-   *  tranche per chain that has a manager) but carry no allow-list grant, so they are not entry points. */
+  /** User deposit entry point — Sepolia only. The other network runs capital; its technical vaults are not user entry points. */
   vaults: {
-    [dep.sepolia.chainId]: { sr: dep.sepolia.vaultSr as Address, jr: dep.sepolia.vaultJr as Address },
+    [dep.sepolia.chainId]: {
+      sr: dep.sepolia.vaultSr as Address,
+      jr: dep.sepolia.vaultJr as Address
+    }
   } as Record<number, { sr: Address; jr: Address }>,
   entryChains: [dep.sepolia.chainId] as number[],
-  weights: { [dep.spoke.chainId]: dep.weights.spoke, [dep.sepolia.chainId]: dep.weights.sepolia } as Record<number, number>,
+  weights: {
+    [dep.spoke.chainId]: dep.weights.spoke,
+    [dep.sepolia.chainId]: dep.weights.sepolia
+  } as Record<number, number>
 } as const
