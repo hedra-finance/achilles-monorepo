@@ -85,6 +85,33 @@ factory/router match the [official deployment list](https://developers.uniswap.o
 Robinhood testnet V3 provenance must be evaluated separately; this is not a claim
 that it is an official mainnet deployment.
 
+## Real-world assets, and what becomes programmable
+
+The portfolio holds tokenized equities — an eight-name technology basket traded
+against Uniswap V3 pools — alongside a stablecoin liquidity position. Tokenizing
+the basket is the starting point, not the product. What the tokenized form makes
+possible is the rest of it:
+
+- **A fixed-rate claim on a real portfolio.** Senior takes a fixed APR ahead of
+  Junior each settlement, the way a treasury tranche sits ahead of equity. That
+  waterfall is a contract, not a fund administrator: the hub prices both tranches
+  from the sources' reported valuations and settles them in the same round.
+- **Ownership that carries its own rules.** Shares are ERC-1404; a transfer asks
+  the allow-list hook first, so eligibility travels with the asset instead of
+  living in an off-chain register. The allow-list is granted on the hub and
+  replicated to every spoke, so one permission decision reaches every chain the
+  asset is held on.
+- **Access proportionate to scarcity.** Senior capacity is the scarce benefit, so
+  it is gated on a verified human rather than a wallet. Junior, which absorbs
+  losses first and has no cap, stays open. The scarce claim and the open claim on
+  the same assets are governed differently, on chain.
+- **Settlement as a workflow, not a batch job.** Requests are ERC-7540: submitted,
+  priced at a settlement, then claimed. Each stage of every request and every
+  settlement — including which chain answered and which bridge attempt failed —
+  is written to the hub's registry and readable by anyone.
+
+The assets are testnet representations; the mechanics around them are the point.
+
 ## Current boundaries
 
 - This is a testnet product. Basket tokens and pool quotes do not establish
@@ -101,9 +128,13 @@ that it is an official mainnet deployment.
 
 ## Team and development
 
-Team Achilles: 샴쇼드, 김상욱 ([woogie96](https://github.com/woogie96)),
-and 김기황 (frontend, design, and frontend API integration).
-Additional public profiles and final submission roles are maintained by the team.
+Team Achilles:
+
+| | Role | Telegram |
+| --- | --- | --- |
+| 김상욱 | Contracts, settlement, cross-chain | [@fjdi789](https://t.me/fjdi789) |
+| 샴쇼드 | Product, World ID integration | [@shamshod_zk](https://t.me/shamshod_zk) |
+| 김기황 | Frontend, design, frontend API integration | [@honggwngji](https://t.me/honggwngji) |
 
 AI-assisted development includes frontend implementation, code review, tests,
 and documentation. This statement describes the frontend assistance reflected
