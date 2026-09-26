@@ -123,7 +123,8 @@ submission is about what sits on top:
 - **An auditable settlement workflow.** ERC-7540 request/claim, with every stage
   of every request and settlement — which chain answered, which bridge attempt
   failed — written to the hub's transaction registry and readable by anyone. The
-  indexer that fills it is in [indexer](indexer/).
+  app reads that trail back in
+  [settlementProgress](frontend/src/lib/reads.ts) and shows it per request.
 
 **Limits we are not glossing over.** These are testnet representations. Holding a
 basket token is not ownership of a legal share, and the pool quotes are not
