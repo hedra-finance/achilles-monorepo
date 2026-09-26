@@ -3,11 +3,12 @@ import { headers } from 'next/headers'
 import { Providers } from './providers'
 import { Shell } from '@/components/Shell'
 import './globals.css'
+import './experience.css'
 
 export const metadata: Metadata = {
   title: 'Achilles | Structured cross-chain yield',
   description:
-    'One strategy. Your choice of risk. Explore Senior and Junior tranches across tokenized stocks and stablecoin liquidity.',
+    'Structure any yield. On any chain. Explore the Achilles testnet strategy and choose your place in the capital structure.',
   icons: { icon: '/brand/achilles.png' }
 }
 
